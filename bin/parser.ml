@@ -1,5 +1,7 @@
 type ast =
   Atom of int
+| Var of string
+| Eq of ast * ast
 | Add of ast * ast
 | Sub of ast * ast
 | Mul of ast * ast
@@ -7,15 +9,17 @@ type ast =
 
 let bp (op : Lexer.token) =
   match op with
-    Lexer.Op '+' -> Some (1, 2)
-  | Lexer.Op '-' -> Some (1, 2)
-  | Lexer.Op '*' -> Some (3, 4)
-  | Lexer.Op '/' -> Some (3, 4)
+    Lexer.Op '=' -> Some (1, 2)
+  | Lexer.Op '+' -> Some (3, 4)
+  | Lexer.Op '-' -> Some (3, 4)
+  | Lexer.Op '*' -> Some (5, 6)
+  | Lexer.Op '/' -> Some (5, 6)
   | _ -> None
 
 let combine (l, op, r) =
   match op with
-    Lexer.Op '+' -> Some (Add(l, r))
+    Lexer.Op '=' -> Some (Eq (l, r))
+  | Lexer.Op '+' -> Some (Add(l, r))
   | Lexer.Op '-' -> Some (Sub(l, r))
   | Lexer.Op '*' -> Some (Mul(l, r))
   | Lexer.Op '/' -> Some (Div(l, r))
@@ -24,6 +28,7 @@ let combine (l, op, r) =
 let rec pratt ts min_bp k =
   match ts with
     Lexer.Num n :: ts' -> advance ts' min_bp (Atom n) k
+  | Lexer.Name n :: ts' -> advance ts' min_bp (Var n) k
   | _ -> (print_endline "c"; k ([], None))
 and advance ts min_bp left k =
   match ts with
@@ -49,9 +54,11 @@ let parse ts =
   
 let print_ast ast =
   let rec p ast n = (
-      print_string (String.make n '\t');
+      print_string (String.make (2*n) ' ');
       match ast with
         Atom n -> Printf.printf "Atom (%d)\n" n
+      | Var n -> Printf.printf "Var (%s)\n" n
+      | Eq (l, r) -> (print_endline "Eq"; p l (n+1); p r (n+1))
       | Add (l, r) -> (print_endline "Add"; p l (n+1); p r (n+1))
       | Sub (l, r) -> (print_endline "Sub"; p l (n+1); p r (n+1))
       | Mul (l, r) -> (print_endline "Mul"; p l (n+1); p r (n+1))

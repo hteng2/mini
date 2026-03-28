@@ -1,5 +1,5 @@
 type token =
-  Var of string
+  Name of string
 | Num of int
 | Op of char
 
@@ -21,11 +21,11 @@ and t cs acc =
 and t_var cs vs acc =
   match cs with
     [] ->
-      Var(vs) :: acc
+      Name(vs) :: acc
   | c::cs' ->
     if Char.Ascii.is_alphanum c then
       t_var cs' (vs ^ Char.escaped c) acc else
-    t cs' (Var(vs) :: acc)
+    t cs (Name(vs) :: acc)
 and t_num cs n0 acc =
   match cs with
     [] -> Num(n0) :: acc
@@ -41,7 +41,7 @@ and t_op cs acc =
 let print_tokens tokens =
   let print_token token =
     match token with
-      Var(s) -> Printf.printf "Var %s\n" s
+      Name(s) -> Printf.printf "Var %s\n" s
     | Num(n) -> Printf.printf "Num %d\n" n
     | Op(c) -> Printf.printf "Op %c\n" c
   in
