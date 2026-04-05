@@ -15,7 +15,6 @@ let bp (op : Lexer.token) =
   | Lexer.Op '*' -> Some (5, 6)
   | Lexer.Op '/' -> Some (5, 6)
   | _ -> None
-;;
 
 let combine (l, op, r) =
   match op with
@@ -25,45 +24,32 @@ let combine (l, op, r) =
   | Lexer.Op '*' -> Some (Mul (l, r))
   | Lexer.Op '/' -> Some (Div (l, r))
   | _ -> None
-;;
 
 let rec pratt ts min_bp k =
   match ts with
   | Lexer.Num n :: ts' -> advance ts' min_bp (Atom n) k
   | Lexer.Name n :: ts' -> advance ts' min_bp (Var n) k
-  | _ ->
-    print_endline "c";
-    k ([], None)
+  | _ -> k ([], None)
 
 and advance ts min_bp left k =
   match ts with
   | [] -> k ([], Some left)
-  | (Lexer.Op c as t) :: ts' ->
-    (match bp t with
-     | None ->
-       print_endline "c";
-       k (ts', None)
-     | Some (l, r) ->
-       if min_bp >= l
-       then k (ts, Some left)
-       else
-         pratt ts' r (fun (ts'', opt_right) ->
-           match opt_right with
-           | None ->
-             print_endline "b";
-             k (ts'', None)
-           | Some right ->
-             (match combine (left, t, right) with
-              | None ->
-                print_endline "a";
-                k (ts'', None)
-              | Some left' -> advance ts'' min_bp left' k)))
-  | _ ->
-    print_endline "0";
-    k ([], None)
-;;
+  | (Lexer.Op c as t) :: ts' -> (
+      match bp t with
+      | None -> k (ts', None)
+      | Some (l, r) ->
+          if min_bp >= l then k (ts, Some left)
+          else
+            pratt ts' r (fun (ts'', opt_right) ->
+                match opt_right with
+                | None -> k (ts'', None)
+                | Some right -> (
+                    match combine (left, t, right) with
+                    | None -> k (ts'', None)
+                    | Some left' -> advance ts'' min_bp left' k)))
+  | _ -> k ([], None)
 
-let parse ts = pratt ts 0
+let parse ts = pratt ts 0 (fun (_, x) -> x)
 
 let print_ast ast =
   let rec p ast n =
@@ -72,25 +58,24 @@ let print_ast ast =
     | Atom n -> Printf.printf "Atom (%d)\n" n
     | Var n -> Printf.printf "Var (%s)\n" n
     | Eq (l, r) ->
-      print_endline "Eq";
-      p l (n + 1);
-      p r (n + 1)
+        print_endline "Eq";
+        p l (n + 1);
+        p r (n + 1)
     | Add (l, r) ->
-      print_endline "Add";
-      p l (n + 1);
-      p r (n + 1)
+        print_endline "Add";
+        p l (n + 1);
+        p r (n + 1)
     | Sub (l, r) ->
-      print_endline "Sub";
-      p l (n + 1);
-      p r (n + 1)
+        print_endline "Sub";
+        p l (n + 1);
+        p r (n + 1)
     | Mul (l, r) ->
-      print_endline "Mul";
-      p l (n + 1);
-      p r (n + 1)
+        print_endline "Mul";
+        p l (n + 1);
+        p r (n + 1)
     | Div (l, r) ->
-      print_endline "Div";
-      p l (n + 1);
-      p r (n + 1)
+        print_endline "Div";
+        p l (n + 1);
+        p r (n + 1)
   in
   p ast 0
-;;
