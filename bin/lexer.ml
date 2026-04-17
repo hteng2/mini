@@ -10,7 +10,7 @@ and t cs acc =
       else if Char.Ascii.is_letter c then t_var cs "" acc
       else if Char.Ascii.is_digit c then t_num cs 0 acc
       else if Char.Ascii.is_print c then t_op cs acc
-      else raise (Failure "unimplemented")
+      else raise (Failure "illegal character")
 
 and t_var cs vs acc =
   match cs with
@@ -29,7 +29,7 @@ and t_num cs n0 acc =
 
 and t_op cs acc =
   match cs with
-  | [] -> raise (Failure "unreachable")
+  | [] -> raise (Failure "Unreachable")
   | c :: cs' -> t cs' (Op c :: acc)
 
 let print_tokens tokens =

@@ -1,7 +1,8 @@
 type ast =
-  | Atom of int
-  | Var of string
-  | Eq of ast * ast
+  | Empty
+  | Num of int
+  | Name of string
+  | Assign of ast * ast
   | Add of ast * ast
   | Sub of ast * ast
   | Mul of ast * ast
@@ -9,45 +10,41 @@ type ast =
 
 let bp (op : Lexer.token) =
   match op with
-  | Lexer.Op '=' -> Some (2, 1)
-  | Lexer.Op '+' -> Some (3, 4)
-  | Lexer.Op '-' -> Some (3, 4)
-  | Lexer.Op '*' -> Some (5, 6)
-  | Lexer.Op '/' -> Some (5, 6)
-  | _ -> None
+  | Lexer.Op '=' -> (2, 1)
+  | Lexer.Op '+' -> (3, 4)
+  | Lexer.Op '-' -> (3, 4)
+  | Lexer.Op '*' -> (5, 6)
+  | Lexer.Op '/' -> (5, 6)
+  | _ -> raise (Failure "unrecognized operator")
 
 let combine (l, op, r) =
   match op with
-  | Lexer.Op '=' -> Some (Eq (l, r))
-  | Lexer.Op '+' -> Some (Add (l, r))
-  | Lexer.Op '-' -> Some (Sub (l, r))
-  | Lexer.Op '*' -> Some (Mul (l, r))
-  | Lexer.Op '/' -> Some (Div (l, r))
-  | _ -> None
+  | Lexer.Op '=' -> Assign (l, r)
+  | Lexer.Op '+' -> Add (l, r)
+  | Lexer.Op '-' -> Sub (l, r)
+  | Lexer.Op '*' -> Mul (l, r)
+  | Lexer.Op '/' -> Div (l, r)
+  | _ -> raise (Failure "unrecognized operator")
 
-let rec pratt ts min_bp k =
+let rec pratt (ts : Lexer.token list) (min_bp : int)
+    (k : Lexer.token list * ast -> 'a) =
   match ts with
-  | Lexer.Num n :: ts' -> advance ts' min_bp (Atom n) k
-  | Lexer.Name n :: ts' -> advance ts' min_bp (Var n) k
-  | _ -> k ([], None)
+  | Lexer.Num n :: ts' -> advance ts' min_bp (Num n) k
+  | Lexer.Name n :: ts' -> advance ts' min_bp (Name n) k
+  | [] -> Empty
+  | _ -> raise (Failure "expected atom")
 
-and advance ts min_bp left k =
+and advance ts min_bp left (k : Lexer.token list * ast -> 'a) =
   match ts with
-  | [] -> k ([], Some left)
-  | (Lexer.Op c as t) :: ts' -> (
-      match bp t with
-      | None -> k (ts', None)
-      | Some (l, r) ->
-          if min_bp >= l then k (ts, Some left)
-          else
-            pratt ts' r (fun (ts'', opt_right) ->
-                match opt_right with
-                | None -> k (ts'', None)
-                | Some right -> (
-                    match combine (left, t, right) with
-                    | None -> k (ts'', None)
-                    | Some left' -> advance ts'' min_bp left' k)))
-  | _ -> k ([], None)
+  | [] -> k ([], left)
+  | (Lexer.Op _ as t) :: ts' ->
+      let l, r = bp t in
+      if min_bp >= l then k (ts, left)
+      else
+        pratt ts' r (fun (ts'', right) ->
+            let left' = combine (left, t, right) in
+            advance ts'' min_bp left' k)
+  | _ -> raise (Failure "unexpected token")
 
 let parse ts = pratt ts 0 (fun (_, x) -> x)
 
@@ -55,9 +52,10 @@ let print_ast ast =
   let rec p ast n =
     print_string (String.make (2 * n) ' ');
     match ast with
-    | Atom n -> Printf.printf "Atom (%d)\n" n
-    | Var n -> Printf.printf "Var (%s)\n" n
-    | Eq (l, r) ->
+    | Empty -> Printf.printf "Empty\n"
+    | Num n -> Printf.printf "Atom (%d)\n" n
+    | Name n -> Printf.printf "Var (%s)\n" n
+    | Assign (l, r) ->
         print_endline "Eq";
         p l (n + 1);
         p r (n + 1)

@@ -1,6 +1,6 @@
 type expr =
-  | Atom of int
-  | Var of string
+  | Num of int
+  | Name of string
   | Assign of string * expr
   | Add of expr * expr
   | Sub of expr * expr
@@ -12,11 +12,12 @@ let combineOpts (l, r) =
 
 let rec analyze (ast : Parser.ast) =
   match ast with
-  | Parser.Atom n -> Some (Atom n)
-  | Parser.Var s -> Some (Var s)
-  | Parser.Eq (l, r) -> (
+  | Parser.Empty -> None
+  | Parser.Num n -> Some (Num n)
+  | Parser.Name s -> Some (Name s)
+  | Parser.Assign (l, r) -> (
       match combineOpts (analyze l, analyze r) with
-      | Some (Var s, r) -> Some (Assign (s, r))
+      | Some (Name s, r) -> Some (Assign (s, r))
       | _ -> None)
   | Parser.Add (l, r) -> translate (l, r) (fun (l, r) -> Add (l, r))
   | Parser.Sub (l, r) -> translate (l, r) (fun (l, r) -> Sub (l, r))
@@ -33,11 +34,11 @@ let print_expr expr =
   let rec p expr n =
     print_string (String.make (2 * n) ' ');
     match expr with
-    | Atom n -> Printf.printf "Atom (%d)\n" n
-    | Var n -> Printf.printf "Var (%s)\n" n
+    | Num n -> Printf.printf "Atom (%d)\n" n
+    | Name n -> Printf.printf "Var (%s)\n" n
     | Assign (l, r) ->
         print_endline "Assign";
-        p (Var l) (n + 1);
+        p (Name l) (n + 1);
         p r (n + 1)
     | Add (l, r) ->
         print_endline "Add";
