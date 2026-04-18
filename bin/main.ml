@@ -6,10 +6,12 @@ let handle_src (scope : int Eval.Vars.t) (src : string) =
     let tokens = Lexer.tokenize chars in
     let ast = Parser.parse tokens in
     let expr = Analyzer.analyze ast in
-    match expr with None -> None | Some expr -> Some (Eval.eval scope expr)
-  with Failure s ->
-    Printf.printf "error: %s\n" s;
-    None
+    Option.bind expr (fun expr -> Eval.eval scope expr)
+  with
+  | Failure s ->
+      Printf.printf "error: %s\n" s;
+      None
+  | Eval.Quit -> exit 0
 
 let rec main (scope : int Eval.Vars.t) =
   let () =
@@ -26,4 +28,6 @@ let rec main (scope : int Eval.Vars.t) =
   in
   main scope'
 
-let () = main Eval.init_scope
+let () =
+  print_endline ":help for help";
+  main Eval.init_scope

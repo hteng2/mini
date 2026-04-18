@@ -1,6 +1,8 @@
 type expr =
   | Num of int
   | Name of string
+  | Cmd of string
+  | Neg of expr
   | Assign of string * expr
   | Add of expr * expr
   | Sub of expr * expr
@@ -15,10 +17,11 @@ let rec analyze (ast : Parser.ast) =
   | Parser.Empty -> None
   | Parser.Num n -> Some (Num n)
   | Parser.Name s -> Some (Name s)
-  | Parser.Assign (l, r) -> (
-      match combineOpts (analyze l, analyze r) with
-      | Some (Name s, r) -> Some (Assign (s, r))
-      | _ -> None)
+  | Parser.Cmd s -> Some (Cmd s)
+  | Parser.Neg e -> (
+      match analyze e with Some e' -> Some (Neg e') | None -> None)
+  | Parser.Assign (s, e) -> (
+      match analyze e with Some e -> Some (Assign (s, e)) | _ -> None)
   | Parser.Add (l, r) -> translate (l, r) (fun (l, r) -> Add (l, r))
   | Parser.Sub (l, r) -> translate (l, r) (fun (l, r) -> Sub (l, r))
   | Parser.Mul (l, r) -> translate (l, r) (fun (l, r) -> Mul (l, r))
@@ -36,6 +39,10 @@ let print_expr expr =
     match expr with
     | Num n -> Printf.printf "Atom (%d)\n" n
     | Name n -> Printf.printf "Var (%s)\n" n
+    | Cmd n -> Printf.printf "Cmd (%s)\n" n
+    | Neg e ->
+        print_endline "Neg";
+        p e (n + 1)
     | Assign (l, r) ->
         print_endline "Assign";
         p (Name l) (n + 1);

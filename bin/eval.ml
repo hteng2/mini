@@ -1,27 +1,41 @@
 module Vars = Map.Make (String)
 
+exception Quit
+
 let init_scope = Vars.empty
 
-let rec eval (scope : int Vars.t) (expr : Analyzer.expr) : int * int Vars.t =
+let runCmd s scope =
+  match s with
+  | "help" ->
+      print_endline "help here";
+      None
+  | "quit" -> raise Quit
+  | _ -> raise (Failure "unimplemented command")
+
+let rec eval (scope : int Vars.t) (expr : Analyzer.expr) =
   match expr with
-  | Analyzer.Num i -> (i, scope)
-  | Analyzer.Name s -> ((try Vars.find s scope with Not_found -> 0), scope)
+  | Analyzer.Num i -> Some (i, scope)
+  | Analyzer.Name s ->
+      Some ((try Vars.find s scope with Not_found -> 0), scope)
+  | Analyzer.Cmd s -> runCmd s scope
+  | Analyzer.Neg e ->
+      Option.bind (eval scope e) (fun (ve, scope') -> Some (-ve, scope'))
   | Analyzer.Assign (n, r) ->
-      let v, scope' = eval scope r in
-      (v, Vars.add n v scope')
+      Option.bind (eval scope r) (fun (v, scope') ->
+          Some (v, Vars.add n v scope'))
   | Analyzer.Add (l, r) ->
-      let vl, scopel = eval scope l in
-      let vr, scoper = eval scopel r in
-      (vl + vr, scoper)
+      Option.bind (eval scope l) (fun (vl, scope') ->
+          Option.bind (eval scope' r) (fun (vr, scope'') ->
+              Some (vl + vr, scope'')))
   | Analyzer.Sub (l, r) ->
-      let vl, scopel = eval scope l in
-      let vr, scoper = eval scopel r in
-      (vl - vr, scoper)
+      Option.bind (eval scope l) (fun (vl, scope') ->
+          Option.bind (eval scope' r) (fun (vr, scope'') ->
+              Some (vl - vr, scope'')))
   | Analyzer.Mul (l, r) ->
-      let vl, scopel = eval scope l in
-      let vr, scoper = eval scopel r in
-      (vl * vr, scoper)
+      Option.bind (eval scope l) (fun (vl, scope') ->
+          Option.bind (eval scope' r) (fun (vr, scope'') ->
+              Some (vl * vr, scope'')))
   | Analyzer.Div (l, r) ->
-      let vl, scopel = eval scope l in
-      let vr, scoper = eval scopel r in
-      (vl / vr, scoper)
+      Option.bind (eval scope l) (fun (vl, scope') ->
+          Option.bind (eval scope' r) (fun (vr, scope'') ->
+              Some (vl / vr, scope'')))

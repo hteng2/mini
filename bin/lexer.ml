@@ -1,4 +1,10 @@
-type token = Name of string | Num of int | Op of char
+type token =
+  | Name of string
+  | Num of int
+  | Op of char
+  | Lparen
+  | Rparen
+  | Colon
 
 let rec tokenize cs = List.rev (t cs [])
 
@@ -9,6 +15,9 @@ and t cs acc =
       if Char.Ascii.is_white c then t cs' acc
       else if Char.Ascii.is_letter c then t_var cs "" acc
       else if Char.Ascii.is_digit c then t_num cs 0 acc
+      else if c = '(' then t_one Lparen cs acc
+      else if c = ')' then t_one Rparen cs acc
+      else if c = ':' then t_one Colon cs acc
       else if Char.Ascii.is_print c then t_op cs acc
       else raise (Failure "illegal character")
 
@@ -27,6 +36,11 @@ and t_num cs n0 acc =
         t_num cs' ((10 * n0) + Char.Ascii.digit_to_int c) acc
       else t cs (Num n0 :: acc)
 
+and t_one token cs acc =
+  match cs with
+  | [] -> raise (Failure "Unreachable")
+  | c :: cs' -> t cs' (token :: acc)
+
 and t_op cs acc =
   match cs with
   | [] -> raise (Failure "Unreachable")
@@ -38,5 +52,8 @@ let print_tokens tokens =
     | Name s -> Printf.printf "Var %s\n" s
     | Num n -> Printf.printf "Num %d\n" n
     | Op c -> Printf.printf "Op %c\n" c
+    | Lparen -> Printf.printf "Lparen\n"
+    | Rparen -> Printf.printf "Rparen\n"
+    | Colon -> Printf.printf "Colon\n"
   in
   List.iter print_token tokens
