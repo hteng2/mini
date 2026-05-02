@@ -30,6 +30,14 @@ let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
       match (eval_expr e1 scopes, eval_expr e2 scopes) with
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 + v2)
       | _ -> raise (Failure "unreachable"))
+  | Ast.Gt (e1, e2) -> (
+      match (eval_expr e1 scopes, eval_expr e2 scopes) with
+      | Values.Int v1, Values.Int v2 -> Values.Bool (v1 > v2)
+      | _ -> raise (Failure "unreachable"))
+  | Ast.Lt (e1, e2) -> (
+      match (eval_expr e1 scopes, eval_expr e2 scopes) with
+      | Values.Int v1, Values.Int v2 -> Values.Bool (v1 < v2)
+      | _ -> raise (Failure "unreachable"))
   | Ast.Sub (e1, e2) -> (
       match (eval_expr e1 scopes, eval_expr e2 scopes) with
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 - v2)
@@ -78,6 +86,16 @@ let rec eval_dec (d : Ast.expr Types.typed Ast.dec)
           | [] -> raise (Failure "unreachable")
           | _ :: scopes' -> scopes')
       | _ -> scopes)
+  | Ast.While ((t, expr), body) ->
+      let rec run scopes =
+        match eval_expr expr scopes with
+        | Values.Bool true -> (
+            match eval body (Scopes.add_scope scopes) with
+            | [] -> raise (Failure "unreachable")
+            | _ :: scopes' -> run scopes')
+        | _ -> scopes
+      in
+      run scopes
 
 and eval (ds : Ast.expr Types.typed Ast.dec list)
     (scopes : Values.value Scopes.t list) : Values.value Scopes.t list =

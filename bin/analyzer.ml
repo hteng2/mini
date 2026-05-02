@@ -18,6 +18,12 @@ let rec infer_type (expr : Ast.expr) (scopes : Types.mini_type Scopes.t list) :
   | Ast.Not e -> force_type (infer_type e scopes) Types.Bool Types.Bool
   | Ast.Eq (e1, e2) ->
       force_type (infer_type e1 scopes) (infer_type e2 scopes) Types.Bool
+  | Ast.Gt (e1, e2) ->
+      force_type (infer_type e1 scopes) Types.Int
+        (force_type (infer_type e2 scopes) Types.Int Types.Bool)
+  | Ast.Lt (e1, e2) ->
+      force_type (infer_type e1 scopes) Types.Int
+        (force_type (infer_type e2 scopes) Types.Int Types.Bool)
   | Ast.Add (e1, e2) | Ast.Sub (e1, e2) | Ast.Mul (e1, e2) | Ast.Div (e1, e2) ->
       force_type (infer_type e1 scopes) Types.Int
         (force_type (infer_type e2 scopes) Types.Int Types.Int)
@@ -50,6 +56,10 @@ let rec infer_dec (d : Ast.expr Ast.dec)
       let t = force_type (infer_type expr scopes) Types.Bool Types.Bool in
       let body' = check_program body (Scopes.add_scope scopes) in
       (Ast.If ((t, expr), body'), scopes)
+  | Ast.While (expr, body) ->
+      let t = force_type (infer_type expr scopes) Types.Bool Types.Bool in
+      let body' = check_program body (Scopes.add_scope scopes) in
+      (Ast.While ((t, expr), body'), scopes)
 
 and check_program (ds : Ast.expr Ast.dec list)
     (scopes : Types.mini_type Scopes.t list) =

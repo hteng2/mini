@@ -22,6 +22,8 @@ let bp op =
   | Token.Xor -> (3, 4)
   | Token.And -> (5, 6)
   | Token.Eq -> (8, 7)
+  | Token.Gt -> (8, 7)
+  | Token.Lt -> (8, 7)
   | Token.Add -> (9, 10)
   | Token.Sub -> (9, 10)
   | Token.Mul -> (11, 12)
@@ -34,6 +36,8 @@ let combine (l, op, r) =
   | Token.Xor -> Ast.Xor (l, r)
   | Token.And -> Ast.And (l, r)
   | Token.Eq -> Ast.Eq (l, r)
+  | Token.Gt -> Ast.Gt (l, r)
+  | Token.Lt -> Ast.Lt (l, r)
   | Token.Add -> Ast.Add (l, r)
   | Token.Sub -> Ast.Sub (l, r)
   | Token.Mul -> Ast.Mul (l, r)
@@ -102,6 +106,16 @@ let rec parse_dec (ts : Token.token list) : Token.token list * Ast.expr Ast.dec
               | _ -> raise (Failure "expected \"end\""))
           | _ -> raise (Failure "expected \"then\""))
   | Token.End :: _ -> raise EndToken
+  | Token.While :: ts1 ->
+      parse_expr ts1 0 (fun (ts2, expr) ->
+          match ts2 with
+          | Token.Do :: ts3 -> (
+              let ts4, body = p ts3 [] in
+              match ts4 with
+              | Token.Done :: ts5 -> (ts5, Ast.While (expr, body))
+              | _ -> raise (Failure "expected \"done\""))
+          | _ -> raise (Failure "expected \"do\""))
+  | Token.Done :: _ -> raise EndToken
   | _ -> raise (Failure "unexpected token")
 
 and p (ts : Token.token list) (ds_acc : Ast.expr Ast.dec list) :

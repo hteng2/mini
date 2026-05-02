@@ -3,6 +3,10 @@ var x = 0
 if true then
 	x = 1
 	print x
+	let x = -1234
+	print x
+	let x = -12340
+	print x
 end
 print x
 

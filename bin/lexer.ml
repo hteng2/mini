@@ -25,6 +25,9 @@ let n2t n =
   | "if" -> Some Token.If
   | "then" -> Some Token.Then
   | "end" -> Some Token.End
+  | "while" -> Some Token.While
+  | "do" -> Some Token.Do
+  | "done" -> Some Token.Done
   | _ -> None
 
 let rec tokenize cs = List.rev (t cs [])
@@ -91,5 +94,8 @@ let print_tokens tokens =
     | Token.If -> Printf.printf "If\n"
     | Token.Then -> Printf.printf "Then\n"
     | Token.End -> Printf.printf "End\n"
+    | Token.While -> Printf.printf "While\n"
+    | Token.Do -> Printf.printf "Do\n"
+    | Token.Done -> Printf.printf "Done\n"
   in
   List.iter print_token tokens

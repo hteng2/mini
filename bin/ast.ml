@@ -7,6 +7,8 @@ type expr =
   | Pos of expr
   | Not of expr
   | Eq of expr * expr
+  | Gt of expr * expr
+  | Lt of expr * expr
   | Add of expr * expr
   | Sub of expr * expr
   | Mul of expr * expr
@@ -21,3 +23,4 @@ type 'a dec =
   | VarSet of string * 'a
   | Print of 'a
   | If of 'a * 'a dec list
+  | While of 'a * 'a dec list

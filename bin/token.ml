@@ -26,3 +26,6 @@ type token =
   | If
   | Then
   | End
+  | While
+  | Do
+  | Done
