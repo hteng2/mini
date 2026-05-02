@@ -15,4 +15,9 @@ type expr =
   | Or of expr * expr
   | Xor of expr * expr
 
-type 'a dec = Let of string * 'a | Print of 'a | If of 'a * 'a dec list
+type 'a dec =
+  | Let of string * 'a
+  | Var of string * 'a
+  | VarSet of string * 'a
+  | Print of 'a
+  | If of 'a * 'a dec list

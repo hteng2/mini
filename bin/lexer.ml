@@ -18,6 +18,7 @@ let c2t c =
 let n2t n =
   match n with
   | "let" -> Some Token.Let
+  | "var" -> Some Token.Var
   | "print" -> Some Token.Print
   | "true" -> Some Token.True
   | "false" -> Some Token.False
@@ -85,6 +86,7 @@ let print_tokens tokens =
     | Token.Not -> Printf.printf "Not\n"
     | Token.Xor -> Printf.printf "Xor\n"
     | Token.Let -> Printf.printf "Let\n"
+    | Token.Var -> Printf.printf "Var\n"
     | Token.Print -> Printf.printf "Print\n"
     | Token.If -> Printf.printf "If\n"
     | Token.Then -> Printf.printf "Then\n"

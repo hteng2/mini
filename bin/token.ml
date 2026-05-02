@@ -21,6 +21,7 @@ type token =
   | Xor
   (* keywords *)
   | Let
+  | Var
   | Print
   | If
   | Then

@@ -4,11 +4,11 @@ let handle_src (src : string) : unit =
     let tokens = Lexer.tokenize chars in
     let decs = Parser.parse tokens in
     let typed_decs = Analyzer.analyze decs in
-    let _ = Eval.eval typed_decs Eval.Vars.empty in
+    let _ = Eval.eval typed_decs [ Scopes.empty ] in
     ()
   with
   | Eval.Div_by_0 -> Printf.printf "exception: division by 0\n"
-  | Eval.NameError -> Printf.printf "exception: unrecognized name\n"
+  | Scopes.NameError -> Printf.printf "exception: unrecognized name\n"
   | Failure s -> print_endline s
 
 let () =

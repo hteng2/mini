@@ -80,6 +80,16 @@ let rec parse_dec (ts : Token.token list) : Token.token list * Ast.expr Ast.dec
           match expr with
           | Ast.Eq (Name s, e) -> (ts'', Ast.Let (s, e))
           | _ -> raise (Failure "unexpected equality"))
+  | Token.Var :: ts' ->
+      parse_expr ts' 0 (fun (ts'', expr) ->
+          match expr with
+          | Ast.Eq (Name s, e) -> (ts'', Ast.Var (s, e))
+          | _ -> raise (Failure "unexpected equality"))
+  | Token.Name _ :: _ ->
+      parse_expr ts 0 (fun (ts', expr) ->
+          match expr with
+          | Ast.Eq (Name s, e) -> (ts', Ast.VarSet (s, e))
+          | _ -> raise (Failure "unexpected equality"))
   | Token.Print :: ts' ->
       parse_expr ts' 0 (fun (ts'', expr) -> (ts'', Ast.Print expr))
   | Token.If :: ts1 ->
