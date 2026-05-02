@@ -1,33 +1,20 @@
-let handle_src (scope : int Eval.Vars.t) (src : string) =
+let handle_src (src : string) : unit =
   try
-    let chars =
-      src |> String.to_seq |> List.of_seq |> List.filter Char.Ascii.is_print
-    in
+    let chars = src |> String.to_seq |> List.of_seq in
     let tokens = Lexer.tokenize chars in
-    let ast = Parser.parse tokens in
-    let expr = Analyzer.analyze ast in
-    Option.bind expr (fun expr -> Eval.eval scope expr)
+    let decs = Parser.parse tokens in
+    let typed_decs = Analyzer.analyze decs in
+    let _ = Eval.eval typed_decs Eval.Vars.empty in
+    ()
   with
-  | Failure s ->
-      Printf.printf "error: %s\n" s;
-      None
-  | Eval.Quit -> exit 0
-
-let rec main (scope : int Eval.Vars.t) =
-  let () =
-    output_string stdout "> ";
-    flush stdout
-  in
-  let result = input_line stdin |> handle_src scope in
-  let v, scope' =
-    match result with
-    | None -> (0, scope)
-    | Some (v, scope') ->
-        Printf.printf "%d\n" v;
-        (v, scope')
-  in
-  main scope'
+  | Eval.Div_by_0 -> Printf.printf "exception: division by 0\n"
+  | Eval.NameError -> Printf.printf "exception: unrecognized name\n"
+  | Failure s -> print_endline s
 
 let () =
-  print_endline ":help for help";
-  main Eval.init_scope
+  if Array.length Sys.argv <> 2 then
+    print_endline "expected argument <filename>"
+  else
+    let file = open_in Sys.argv.(1) in
+    let src = In_channel.input_all file in
+    handle_src src
