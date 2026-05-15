@@ -7,14 +7,18 @@ type token =
   (* structures *)
   | Lparen
   | Rparen
-  (* operators *)
+  | Comma
+  (* ordered comparison *)
   | Eq
   | Gt
   | Lt
+  (* arithmetic *)
   | Add
   | Sub
   | Mul
   | Div
+  | Mod
+  (* logic *)
   | And
   | Or
   | Not
@@ -25,7 +29,10 @@ type token =
   | Print
   | If
   | Then
+  | Else
   | End
   | While
   | Do
   | Done
+
+type t = token Loc.spanned

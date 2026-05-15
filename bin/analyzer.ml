@@ -1,12 +1,10 @@
 module Vars = Map.Make (String)
 
-exception TypeError
+let force_type t1 t2 t_res = if t1 = t2 then t_res else raise Scopes.TypeError
 
-let force_type t1 t2 t_res = if t1 = t2 then t_res else raise TypeError
-
-let rec infer_type (expr : Ast.expr) (scopes : Types.mini_type Scopes.t list) :
-    Types.mini_type =
-  match expr with
+let rec infer_type (expr : Ast.expr) (scopes : Types.t Scopes.t list) : Types.t
+    =
+  match expr.v with
   | Ast.Num n -> Types.Int
   | Ast.Name name ->
       let t, _ = Scopes.search_scopes scopes name in
@@ -24,49 +22,62 @@ let rec infer_type (expr : Ast.expr) (scopes : Types.mini_type Scopes.t list) :
   | Ast.Lt (e1, e2) ->
       force_type (infer_type e1 scopes) Types.Int
         (force_type (infer_type e2 scopes) Types.Int Types.Bool)
-  | Ast.Add (e1, e2) | Ast.Sub (e1, e2) | Ast.Mul (e1, e2) | Ast.Div (e1, e2) ->
+  | Ast.Add (e1, e2)
+  | Ast.Sub (e1, e2)
+  | Ast.Mul (e1, e2)
+  | Ast.Div (e1, e2)
+  | Ast.Mod (e1, e2) ->
       force_type (infer_type e1 scopes) Types.Int
         (force_type (infer_type e2 scopes) Types.Int Types.Int)
   | Ast.And (e1, e2) | Ast.Or (e1, e2) | Ast.Xor (e1, e2) ->
       force_type (infer_type e1 scopes) Types.Bool
         (force_type (infer_type e2 scopes) Types.Bool Types.Bool)
+  | Ast.Tuple es -> Types.Tuple (infer_tuple es scopes)
 
-let rec infer_dec (d : Ast.expr Ast.dec)
-    (scopes : Types.mini_type Scopes.t list) :
-    Ast.expr Types.typed Ast.dec * Types.mini_type Scopes.t list =
-  match d with
+and infer_tuple es scopes =
+  match es with
+  | [] -> []
+  | e :: es' -> infer_type e scopes :: infer_tuple es' scopes
+
+let rec infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) :
+    Types.t Scopes.t list =
+  match d.v with
   | Ast.Let (name, expr) ->
       let t = infer_type expr scopes in
       let scopes' = Scopes.add_to_scope scopes name Scopes.Const t in
-      (Ast.Let (name, (t, expr)), scopes')
+      scopes'
   | Ast.Var (name, expr) ->
       let t = infer_type expr scopes in
       let scopes' = Scopes.add_to_scope scopes name Scopes.Var t in
-      (Ast.Var (name, (t, expr)), scopes')
+      scopes'
   | Ast.VarSet (name, expr) ->
       let t = infer_type expr scopes in
       let t2, m = Scopes.search_scopes scopes name in
       if m = Scopes.Const then raise Scopes.MutError
-      else if t = t2 then (Ast.VarSet (name, (t, expr)), scopes)
-      else raise TypeError
+      else if t = t2 then scopes
+      else raise Scopes.TypeError
   | Ast.Print expr ->
-      let t = infer_type expr scopes in
-      (Ast.Print (t, expr), scopes)
-  | Ast.If (expr, body) ->
-      let t = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let body' = check_program body (Scopes.add_scope scopes) in
-      (Ast.If ((t, expr), body'), scopes)
+      let _ = infer_type expr scopes in
+      scopes
+  | Ast.If (Ast.IfThen (expr, body)) ->
+      let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
+      let _ = check_program body (Scopes.add_scope scopes) in
+      scopes
+  | Ast.If (Ast.IfThenElse (expr, body, body2)) ->
+      let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
+      let _ = check_program body (Scopes.add_scope scopes) in
+      let _ = check_program body2 (Scopes.add_scope scopes) in
+      scopes
   | Ast.While (expr, body) ->
-      let t = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let body' = check_program body (Scopes.add_scope scopes) in
-      (Ast.While ((t, expr), body'), scopes)
+      let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
+      let _ = check_program body (Scopes.add_scope scopes) in
+      scopes
 
-and check_program (ds : Ast.expr Ast.dec list)
-    (scopes : Types.mini_type Scopes.t list) =
+and check_program (ds : Ast.program) (scopes : Types.t Scopes.t list) =
   match ds with
   | [] -> []
   | d :: ds' ->
-      let d', scope' = infer_dec d scopes in
-      d' :: check_program ds' scope'
+      let scope' = infer_dec d scopes in
+      check_program ds' scope'
 
 let analyze ds = check_program ds (Scopes.add_scope [])

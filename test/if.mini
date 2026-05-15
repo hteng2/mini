@@ -1,8 +1,9 @@
-let x = 0
-if true then
-	let y = x
-	let y = y + 1
-	print y
-	let x = 1
-end
-print x
+var x = 0
+while x < 100 do
+	if x % 2 = 0 then
+		print 0
+	else
+		print 1
+	end
+	x = x + 1
+done

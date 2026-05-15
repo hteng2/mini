@@ -1,5 +1,6 @@
 module Vars = Map.Make (String)
 
+exception TypeError
 exception NameError
 exception MutError
 
