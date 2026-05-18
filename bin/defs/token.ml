@@ -7,6 +7,8 @@ type token =
   (* structures *)
   | Lparen
   | Rparen
+  | Lbrack
+  | Rbrack
   | Comma
   (* ordered comparison *)
   | Eq
@@ -27,6 +29,7 @@ type token =
   | Let
   | Var
   | Print
+  | Println
   | If
   | Then
   | Else

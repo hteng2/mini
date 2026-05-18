@@ -10,6 +10,7 @@
 | `Let`              | `let`                  |
 | `Var`              | `var`                  |
 | `Print`            | `print`                |
+| `Println`          | `println`              |
 | `If`               | `if`                   |
 | `Then`             | `then`                 |
 | `Else`             | `else`                 |
@@ -20,8 +21,10 @@
 | `Name`             | `[a-zA-Z][a-zA-Z0-9]*` |
 | operators          |                        |
 | `Lparen`           | `(`                    |
-| `Comma`            | `,`                    |
 | `Rparen`           | `)`                    |
+| `Lbrack`           | `[`                    |
+| `Rbrack`           | `]`                    |
+| `Comma`            | `,`                    |
 | ordered comparison |                        |
 | `Eq`               | `=`                    |
 | `Gt`               | `>`                    |

@@ -2,6 +2,8 @@ let c2t c =
   match c with
   | '(' -> Some Token.Lparen
   | ')' -> Some Token.Rparen
+  | '[' -> Some Token.Lbrack
+  | ']' -> Some Token.Rbrack
   | ',' -> Some Token.Comma
   | '=' -> Some Token.Eq
   | '>' -> Some Token.Gt
@@ -22,6 +24,7 @@ let n2t n =
   | "let" -> Some Token.Let
   | "var" -> Some Token.Var
   | "print" -> Some Token.Print
+  | "println" -> Some Token.Println
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If
@@ -77,43 +80,3 @@ and t_op cs ts ((start_loc, (row, col)) as span) =
       match c2t c with
       | Some token -> t cs' ({ v = token; span } :: ts) (row, col + 1)
       | None -> raise (Errors.Unexpected { v = "char"; span }))
-
-let print_tokens ts =
-  let t2s t =
-    match t with
-    | Token.Num n -> Printf.sprintf "Num %d\t" n
-    | Token.Name n -> Printf.sprintf "Name %s\t" n
-    | Token.True -> "True\t"
-    | Token.False -> "False\t"
-    | Token.Lparen -> "Lparen\t"
-    | Token.Rparen -> "Rparen\t"
-    | Token.Comma -> "Comma\t"
-    | Token.Eq -> "Eq\t"
-    | Token.Gt -> "Gt\t"
-    | Token.Lt -> "Lt\t"
-    | Token.Add -> "Add\t"
-    | Token.Sub -> "Sub\t"
-    | Token.Mul -> "Mul\t"
-    | Token.Div -> "Div\t"
-    | Token.Mod -> "Mod\t"
-    | Token.And -> "And\t"
-    | Token.Or -> "Or\t"
-    | Token.Not -> "Not\t"
-    | Token.Xor -> "Xor\t"
-    | Token.Let -> "Let\t"
-    | Token.Var -> "Var\t"
-    | Token.Print -> "Print\t"
-    | Token.If -> "If\t"
-    | Token.Then -> "Then\t"
-    | Token.Else -> "Else\t"
-    | Token.End -> "End\t"
-    | Token.While -> "While\t"
-    | Token.Do -> "Do\t"
-    | Token.Done -> "Done\t"
-  in
-  List.fold_left
-    (fun _ ->
-      fun ({ v; span = (sr, sc), (er, ec) } : Token.t) ->
-       Printf.printf "%s %d:%d-%d:%d\n" (t2s v) sr sc er ec;
-       ())
-    () ts

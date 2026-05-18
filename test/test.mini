@@ -1,2 +1,5 @@
-let x = 1
-print x
+let x = [1, 2]
+println x[0]
+println x[1]
+let sum = x[0] + x[1]
+println sum

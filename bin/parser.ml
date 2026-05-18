@@ -52,11 +52,21 @@ let rec parse_expr (ts : Token.t list) (min_bp : int)
       match v with
       | Token.Num n -> advance ts' min_bp { v = Ast.Num n; span } (fun x -> k x)
       | Token.Name n ->
-          advance ts' min_bp { v = Ast.Name n; span } (fun x -> k x)
+          advance ts' min_bp { v = Ast.Id (Ast.Name n); span } (fun x -> k x)
       | Token.True -> advance ts' min_bp { v = Ast.True; span } (fun x -> k x)
       | Token.False -> advance ts' min_bp { v = Ast.False; span } (fun x -> k x)
       | Token.Lparen ->
-          parse_tuple ts' (fun (ts'', expr) ->
+          parse_expr ts' 0 (fun (ts'', inner) ->
+              match ts'' with
+              | { v = Token.Rparen; span = span2 } :: ts''' ->
+                  let start_loc, _ = span in
+                  let _, end_loc = span2 in
+                  advance ts''' min_bp
+                    { v = inner.v; span = (start_loc, end_loc) }
+                    k
+              | _ -> raise (Errors.Expected { v = "closing )"; span }))
+      | Token.Lbrack ->
+          parse_list ts (fun (ts'', expr) ->
               advance ts'' min_bp expr (fun x -> k x))
       | _ -> (
           try
@@ -72,6 +82,25 @@ and advance (ts : Token.t list) (min_bp : int) (left : Ast.expr)
     (k : Token.t list * Ast.expr -> 'a) =
   match ts with
   | [] -> k (ts, left)
+  | { v = Token.Lbrack; span } :: ts' ->
+      parse_expr ts' 0 (fun (ts'', inner) ->
+          match ts'' with
+          | { v = Token.Rbrack; span = span2 } :: ts''' -> (
+              match left with
+              | { v = Ast.Id id; span = start_loc, _ } ->
+                  let _, end_loc = span2 in
+                  advance ts''' min_bp
+                    {
+                      v = Ast.Id (Ast.At (id, inner));
+                      span = (start_loc, end_loc);
+                    }
+                    k
+              | _ -> raise (Errors.Unexpected { v = "token"; span = span2 }))
+          | _ ->
+              let start_loc, _ = span in
+              let _, end_loc = inner.span in
+              raise
+                (Errors.Expected { v = "closing"; span = (start_loc, end_loc) }))
   | ({ v; span } as token) :: ts' -> (
       match bp v with
       | None -> k (ts, left)
@@ -86,13 +115,13 @@ and advance (ts : Token.t list) (min_bp : int) (left : Ast.expr)
             with Missing ->
               raise (Errors.Expected { v = "right expression"; span })))
 
-and parse_tuple (ts : Token.t list) (k : Token.t list * Ast.expr -> 'a) =
+and parse_list (ts : Token.t list) (k : Token.t list * Ast.expr -> 'a) =
   match ts with
-  | { v = Token.Lparen; span = start_loc, _ } :: ts ->
+  | { v = Token.Lbrack; span = start_loc, _ } :: ts ->
       parse_expr_list ts (fun (ts', es) ->
           match ts' with
-          | ({ v = Token.Rparen; span = _, end_loc } : Token.t) :: ts'' ->
-              k (ts'', { v = Ast.Tuple es; span = (start_loc, end_loc) })
+          | ({ v = Token.Rbrack; span = _, end_loc } : Token.t) :: ts'' ->
+              k (ts'', { v = Ast.List es; span = (start_loc, end_loc) })
           | _ -> assert false)
   | _ -> assert false
 
@@ -103,10 +132,10 @@ and parse_expr_list (ts : Token.t list) (k : Token.t list * Ast.expr list -> 'a)
       try
         parse_expr ts 0 (fun (ts', expr) ->
             match ts' with
-            | { v = Token.Rparen; _ } :: ts'' -> k (ts', expr :: [])
+            | { v = Token.Rbrack; _ } :: ts'' -> k (ts', expr :: [])
             | { v = Token.Comma; _ } :: ts'' ->
                 parse_expr_list ts'' (fun (ts''', es) -> k (ts''', expr :: es))
-            | _ -> raise (Errors.Unexpected { v = "token)"; span }))
+            | _ -> raise (Errors.Unexpected { v = "token"; span }))
       with Missing -> raise (Errors.Expected { v = "expression"; span }))
   | _ -> assert false
 
@@ -161,6 +190,13 @@ let rec parse_dec (ts : Token.t list) : Token.t list * Ast.dec =
       in
       (ts4, { v = Ast.Var (name, expr); span = (start_loc, end_loc) })
   | { v = Token.Name name; span = start_loc, end_loc } :: ts1 ->
+      let ts1, id =
+        parse_expr ts prefix_bp (fun (ts1, expr) ->
+            match expr with
+            | { v = Ast.Id id; _ } -> (ts1, id)
+            | _ ->
+                raise (Errors.Expected { v = "identifier"; span = expr.span }))
+      in
       let ts2, _, (_, end_loc) =
         bind_expect (bind_x Token.Eq)
           { v = "'='"; span = (start_loc, end_loc) }
@@ -171,7 +207,7 @@ let rec parse_dec (ts : Token.t list) : Token.t list * Ast.dec =
           { v = "expression"; span = (start_loc, end_loc) }
           ts2
       in
-      (ts3, { v = Ast.VarSet (name, expr); span = (start_loc, end_loc) })
+      (ts3, { v = Ast.VarSet (id, expr); span = (start_loc, end_loc) })
   | { v = Token.Print; span = start_loc, end_loc } :: ts1 ->
       let ts2, expr =
         bind_expect bind_expr
@@ -179,6 +215,13 @@ let rec parse_dec (ts : Token.t list) : Token.t list * Ast.dec =
           ts1
       in
       (ts2, { v = Ast.Print expr; span = (start_loc, end_loc) })
+  | { v = Token.Println; span = start_loc, end_loc } :: ts1 ->
+      let ts2, expr =
+        bind_expect bind_expr
+          { v = "expression"; span = (start_loc, end_loc) }
+          ts1
+      in
+      (ts2, { v = Ast.Println expr; span = (start_loc, end_loc) })
   | { v = Token.If; span = start_loc, end_loc } :: ts1 -> (
       let ts2, expr =
         bind_expect bind_expr
@@ -248,4 +291,6 @@ and p (ts : Token.t list) (ds_acc : Ast.dec list) : Token.t list * Ast.dec list
       with EndToken _ -> (ts, List.rev ds_acc))
 
 let parse ts =
-  match p ts [] with [], ds -> ds | _ -> raise (Failure "extra end somewhere")
+  match p ts [] with
+  | [], ds -> ds
+  | t :: _, _ -> raise (Errors.Unexpected { v = "token"; span = t.span })

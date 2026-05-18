@@ -14,7 +14,11 @@ Let ::= `Let` `Name` `Eq` E
 
 Var ::= `Var` `Name` `Eq` E
 
-VarSet ::= `Name` `Eq` E
+VarSet ::=
+
+| `Name` `Eq` E
+
+| `Name` `Lbrack` E `Rbrack` `Eq` E
 
 Print ::= `Print` E
 
@@ -32,7 +36,7 @@ E ::=
 
 | `Num`
 
-| `Name`
+| V
 
 | `True`
 
@@ -64,8 +68,14 @@ E ::=
 
 | E `Xor` E
 
-| `Lparen` Es `Rparen`
+| `Lparen` E `Rparen`
 
-| `Lparen` `Rparen`
+| `Lbrack` Es `Rbrack`
+
+V ::=
+
+| `Name`
+
+| Var `Lbrack` E `Rbrack`
 
 Es ::= E | E `Comma` Es

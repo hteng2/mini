@@ -1,6 +1,6 @@
 type e =
   | Num of int
-  | Name of string
+  | Id of v
   | True
   | False
   | Neg of expr
@@ -17,15 +17,17 @@ type e =
   | And of expr * expr
   | Or of expr * expr
   | Xor of expr * expr
-  | Tuple of expr list
+  | List of expr list
 
+and v = Name of string | At of v * expr
 and expr = e Loc.spanned
 
 type d =
   | Let of string * expr
   | Var of string * expr
-  | VarSet of string * expr
+  | VarSet of v * expr
   | Print of expr
+  | Println of expr
   | If of if_stmt
   | While of expr * program
 
