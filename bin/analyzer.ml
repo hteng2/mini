@@ -1,6 +1,9 @@
 module Vars = Map.Make (String)
 
+type ctx = { loop : bool; func : Types.tt option }
+
 exception TypeError
+exception CtrlError
 
 let force_type t1 t2 t_res = if t1 = t2 then t_res else raise TypeError
 
@@ -75,7 +78,9 @@ let rec infer_type (expr : Ast.expr) (scopes : Types.t Scopes.t list) : Types.tt
           List.map (fun ({ v = _, t } : Ast.param) -> translate_type t) ps
         in
         let t' = translate_type t in
-        let _ = infer_dec body (scope :: scopes) (Some t') in
+        let _ =
+          infer_dec body (scope :: scopes) { loop = false; func = Some t' }
+        in
         Types.Fn (t', ts)
     | Ast.FnCall (fn, args) -> (
         match infer_type fn scopes with
@@ -98,8 +103,8 @@ and infer_list es scopes =
       let t2 = infer_list es' scopes in
       if t = t2 then t else raise TypeError
 
-and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list)
-    (result_type : Types.tt option) : Types.t Scopes.t list =
+and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) :
+    Types.t Scopes.t list =
   match d.v with
   | Ast.Let (name, expr) ->
       let t = infer_type expr scopes in
@@ -128,34 +133,35 @@ and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list)
       scopes
   | Ast.If (expr, body, body2) -> (
       let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let _ = infer_dec body scopes result_type in
+      let _ = infer_dec body scopes ctx in
       match body2 with
       | Some body2 ->
-          let _ = infer_dec body2 scopes result_type in
+          let _ = infer_dec body2 scopes ctx in
           scopes
       | None -> scopes)
   | Ast.While (expr, body) ->
       let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let _ = infer_dec body scopes result_type in
+      let _ = infer_dec body scopes { loop = true; func = ctx.func } in
       scopes
-  | Ast.Break | Ast.Continue -> scopes
+  | Ast.Break | Ast.Continue -> if ctx.loop then scopes else raise CtrlError
   | Ast.Return expr -> (
-      let t1 = infer_type expr scopes in
-      match result_type with
-      | None -> scopes
+      match ctx.func with
+      | None -> raise CtrlError
       | Some t ->
+          let t1 = infer_type expr scopes in
           let _ = force_type t t1 t in
           scopes)
   | Ast.Block body ->
-      let _ = check_program body (Scopes.add_scope scopes) result_type in
+      let _ = check_program body (Scopes.add_scope scopes) ctx in
       scopes
 
 and check_program (ds : Ast.program) (scopes : Types.t Scopes.t list)
-    (result_type : Types.tt option) =
+    (ctx : ctx) =
   match ds with
   | [] -> ()
   | d :: ds' ->
-      let scope' = infer_dec d scopes result_type in
-      check_program ds' scope' result_type
+      let scope' = infer_dec d scopes ctx in
+      check_program ds' scope' ctx
 
-let analyze ds = check_program ds (Scopes.add_scope []) None
+let analyze ds =
+  check_program ds (Scopes.add_scope []) { loop = false; func = None }

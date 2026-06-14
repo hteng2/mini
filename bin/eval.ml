@@ -1,9 +1,17 @@
 exception Div of Loc.range
 exception Range of Loc.range
-exception Break of Loc.range
-exception Continue of Loc.range
+exception Break of Values.value Scopes.t list
+exception Continue of Values.value Scopes.t list
 exception Return of Values.value * Values.value Scopes.t list
 exception NoReturn of Loc.range
+
+let run_with_scope (scopes : Values.value Scopes.t list)
+    (f : Values.value Scopes.t list -> 'a) : 'a =
+  let scopes' = Scopes.add_scope scopes in
+  try f scopes' with
+  | Break scopes'' -> raise (Break (Scopes.pop_scope scopes''))
+  | Continue scopes'' -> raise (Continue (Scopes.pop_scope scopes''))
+  | Return (v, scopes'') -> raise (Return (v, Scopes.pop_scope scopes''))
 
 let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
     Values.value * Values.value Scopes.t list =
@@ -110,19 +118,19 @@ let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
       let fn', scopes' = eval_expr fn scopes in
       let args', scopes'' = eval_exprs args scopes' [] in
       match fn' with
-      | Values.Fn (ps, body) -> (
-          let scopes''' =
-            List.fold_left2
-              (fun acc ->
-                fun ({ v = name, _ } : Ast.param) ->
-                 fun arg -> Scopes.add_to_scope acc name arg)
-              (Scopes.add_scope scopes'')
-              ps args'
-          in
-          try
-            let _ = eval_dec body scopes''' in
-            raise (NoReturn expr.span)
-          with Return (a, b) -> (a, b))
+      | Values.Fn (ps, body) ->
+          run_with_scope scopes'' (fun scopes''' ->
+              let scopes'''' =
+                List.fold_left2
+                  (fun acc ->
+                    fun ({ v = name, _ } : Ast.param) ->
+                     fun arg -> Scopes.add_to_scope acc name arg)
+                  scopes''' ps args'
+              in
+              try
+                let _ = eval_dec body scopes'''' in
+                raise (NoReturn expr.span)
+              with Return (a, b) -> (a, b))
       | _ -> assert false)
 
 and eval_exprs es scopes acc =
@@ -184,34 +192,32 @@ and eval_dec (d : Ast.dec) (scopes : Values.value Scopes.t list) :
       let v, scopes' = eval_expr expr scopes in
       match (v, body2) with
       | Values.Bool true, _ ->
-          let scopes'' = Scopes.add_scope scopes' in
-          let scopes''' = eval_dec body1 scopes'' in
-          Scopes.pop_scope scopes'''
+          run_with_scope scopes' (fun scopes'' -> eval_dec body1 scopes'')
       | Values.Bool false, Some body2 ->
-          let scopes'' = Scopes.add_scope scopes' in
-          let scopes''' = eval_dec body2 scopes'' in
-          Scopes.pop_scope scopes'''
+          run_with_scope scopes' (fun scopes'' -> eval_dec body2 scopes'')
       | _ -> scopes')
   | Ast.While (expr, body) ->
       let rec run scopes =
         let v, scopes' = eval_expr expr scopes in
         match v with
-        | Values.Bool true ->
-            let scopes'' = Scopes.add_scope scopes' in
-            let scopes''' = eval_dec body scopes'' in
-            run (Scopes.pop_scope scopes''')
+        | Values.Bool true -> (
+            try
+              let scopes'' =
+                run_with_scope scopes' (fun scopes'' -> eval_dec body scopes'')
+              in
+              run scopes''
+            with
+            | Break scopes'' -> scopes''
+            | Continue scopes'' -> run scopes'')
         | _ -> scopes'
       in
       run scopes
-  | Ast.Break -> raise (Break d.span)
-  | Ast.Continue -> raise (Continue d.span)
+  | Ast.Break -> raise (Break scopes)
+  | Ast.Continue -> raise (Continue scopes)
   | Ast.Return e ->
       let v, scopes' = eval_expr e scopes in
       raise (Return (v, scopes'))
-  | Ast.Block p -> (
-      match eval p (Scopes.add_scope scopes) with
-      | [] -> assert false
-      | _ :: scopes' -> scopes')
+  | Ast.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
 
 and print_val (v : Values.value) =
   match v with
