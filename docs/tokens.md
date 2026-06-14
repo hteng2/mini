@@ -7,23 +7,26 @@
 | keywords           |                        |
 | `True`             | `true`                 |
 | `False`            | `false`                |
+| `Void`             | `_`                    |
 | `Let`              | `let`                  |
 | `Var`              | `var`                  |
 | `Print`            | `print`                |
 | `Println`          | `println`              |
 | `If`               | `if`                   |
-| `Then`             | `then`                 |
 | `Else`             | `else`                 |
-| `End`              | `end`                  |
 | `While`            | `while`                |
-| `Do`               | `do`                   |
-| `Done`             | `done`                 |
+| `Break`            | `break`                |
+| `Continue`         | `continue`             |
+| `Fn`               | `fn`                   |
+| `Return`           | `return`               |
 | `Name`             | `[a-zA-Z][a-zA-Z0-9]*` |
 | operators          |                        |
 | `Lparen`           | `(`                    |
 | `Rparen`           | `)`                    |
 | `Lbrack`           | `[`                    |
 | `Rbrack`           | `]`                    |
+| `Lbrace`           | `{`                    |
+| `Rbrace`           | `}`                    |
 | `Comma`            | `,`                    |
 | ordered comparison |                        |
 | `Eq`               | `=`                    |

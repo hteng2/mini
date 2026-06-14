@@ -4,11 +4,14 @@ type token =
   | Name of string
   | True
   | False
+  | Void
   (* structures *)
   | Lparen
   | Rparen
   | Lbrack
   | Rbrack
+  | Lbrace
+  | Rbrace
   | Comma
   (* ordered comparison *)
   | Eq
@@ -31,11 +34,11 @@ type token =
   | Print
   | Println
   | If
-  | Then
   | Else
-  | End
   | While
-  | Do
-  | Done
+  | Break
+  | Continue
+  | Fn
+  | Return
 
 type t = token Loc.spanned

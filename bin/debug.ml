@@ -9,6 +9,8 @@ let print_tokens ts =
     | Token.Rparen -> "Rparen\t"
     | Token.Lbrack -> "Lbrack\t"
     | Token.Rbrack -> "Rbrack\t"
+    | Token.Lbrace -> "Lbrace\t"
+    | Token.Rbrace -> "Rbrace\t"
     | Token.Comma -> "Comma\t"
     | Token.Eq -> "Eq\t"
     | Token.Gt -> "Gt\t"
@@ -27,12 +29,12 @@ let print_tokens ts =
     | Token.Print -> "Print\t"
     | Token.Println -> "Println\t"
     | Token.If -> "If\t"
-    | Token.Then -> "Then\t"
     | Token.Else -> "Else\t"
-    | Token.End -> "End\t"
     | Token.While -> "While\t"
-    | Token.Do -> "Do\t"
-    | Token.Done -> "Done\t"
+    | Token.Break -> "Break\t"
+    | Token.Continue -> "Continue\t"
+    | Token.Fn -> "Fn\t"
+    | Token.Return -> "Return\t"
   in
   List.fold_left
     (fun _ ->
@@ -60,7 +62,7 @@ and print_dec (dec : Ast.dec) lvl =
       print_expr e (lvl + 1)
   | Ast.VarSet (v, e) ->
       Printf.printf "var_set\n";
-      print_v v (lvl + 1);
+      print_id v (lvl + 1);
       print_expr e (lvl + 1)
   | Ast.Print e ->
       Printf.printf "print\n";
@@ -68,27 +70,29 @@ and print_dec (dec : Ast.dec) lvl =
   | Ast.Println e ->
       Printf.printf "println\n";
       print_expr e (lvl + 1)
-  | Ast.If (Ast.IfThen (e, ds)) ->
-      Printf.printf "if then\n";
-      print_expr e (lvl + 1);
-      print_p ds (lvl + 1)
-  | Ast.If (Ast.IfThenElse (e, ds, ds2)) ->
+  | Ast.If (e, ds, ds2) -> (
       Printf.printf "if then else\n";
       print_expr e (lvl + 1);
-      print_p ds (lvl + 1);
-      print_p ds2 (lvl + 1)
+      print_dec ds (lvl + 1);
+      match ds2 with Some ds2 -> print_dec ds2 (lvl + 1) | None -> ())
   | Ast.While (e, ds) ->
       Printf.printf "while\n";
       print_expr e (lvl + 1);
+      print_dec ds (lvl + 1)
+  | Ast.Break -> Printf.printf "break\n"
+  | Ast.Continue -> Printf.printf "continue\n"
+  | Ast.Return e ->
+      Printf.printf "return\n";
+      print_expr e (lvl + 1)
+  | Ast.Block ds ->
+      Printf.printf "block\n";
       print_p ds (lvl + 1)
 
 and print_expr expr lvl : unit =
   print_string (String.make (2 * lvl) ' ');
   match expr.v with
   | Ast.Num n -> Printf.printf "%d\n" n
-  | Ast.Id id ->
-      Printf.printf "id\n";
-      print_v id (lvl + 1)
+  | Ast.Name n -> Printf.printf "name %s\n" n
   | Ast.True -> Printf.printf "true\n"
   | Ast.False -> Printf.printf "false\n"
   | Ast.Neg e ->
@@ -147,12 +151,37 @@ and print_expr expr lvl : unit =
   | Ast.List es ->
       Printf.printf "list\n";
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
-
-and print_v v lvl =
-  print_string (String.make (2 * lvl) ' ');
-  match v with
-  | Ast.Name name -> Printf.printf "%s\n" name
-  | Ast.At (v', expr) ->
+  | Ast.At (e1, e2) ->
       Printf.printf "at\n";
-      print_v v' (lvl + 1);
+      print_expr e1 (lvl + 1);
+      print_expr e2 (lvl + 1)
+  | Ast.FnVal (ps, t, body) ->
+      Printf.printf "fnval\n";
+      List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
+      print_type t (lvl + 1);
+      print_dec body (lvl + 1)
+  | Ast.FnCall (e, es) ->
+      Printf.printf "fncall\n";
+      print_expr e (lvl + 1);
+      List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
+
+and print_param (param : Ast.param) lvl =
+  print_string (String.make (2 * lvl) ' ');
+  let name, t = param.v in
+  Printf.printf "param\n";
+  print_string (String.make (2 * (lvl + 1)) ' ');
+  Printf.printf "%s\n" name;
+  print_type t (lvl + 1)
+
+and print_type t lvl =
+  print_string (String.make (2 * lvl) ' ');
+  Printf.printf "<type>\n"
+
+and print_id id lvl =
+  print_string (String.make (2 * lvl) ' ');
+  match id.v with
+  | Ast.IdName name -> Printf.printf "%s\n" name
+  | Ast.IdAt (id', expr) ->
+      Printf.printf "at\n";
+      print_id id' (lvl + 1);
       print_expr expr (lvl + 1)

@@ -1,5 +1,8 @@
-let x = [1, 2]
-println x[0]
-println x[1]
-let sum = x[0] + x[1]
-println sum
+var i = 0
+let f = fn () void {
+	i = i + 1
+	return _
+}
+println i
+let x = f ()
+println i

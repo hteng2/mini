@@ -4,6 +4,8 @@ let c2t c =
   | ')' -> Some Token.Rparen
   | '[' -> Some Token.Lbrack
   | ']' -> Some Token.Rbrack
+  | '{' -> Some Token.Lbrace
+  | '}' -> Some Token.Rbrace
   | ',' -> Some Token.Comma
   | '=' -> Some Token.Eq
   | '>' -> Some Token.Gt
@@ -17,6 +19,7 @@ let c2t c =
   | '|' -> Some Token.Or
   | '!' -> Some Token.Not
   | '^' -> Some Token.Xor
+  | '_' -> Some Token.Void
   | _ -> None
 
 let n2t n =
@@ -28,12 +31,12 @@ let n2t n =
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If
-  | "then" -> Some Token.Then
   | "else" -> Some Token.Else
-  | "end" -> Some Token.End
   | "while" -> Some Token.While
-  | "do" -> Some Token.Do
-  | "done" -> Some Token.Done
+  | "break" -> Some Token.Break
+  | "continue" -> Some Token.Continue
+  | "fn" -> Some Token.Fn
+  | "return" -> Some Token.Return
   | _ -> None
 
 let rec tokenize cs = List.rev (t cs [] (1, 1))

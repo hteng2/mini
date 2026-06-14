@@ -5,10 +5,10 @@ var n1 = 1
 var i = 0
 let limit = 10
 
-while i < limit do
+while i < limit {
 	let n2 = n0 + n1
-	print n2
+	println n2
 	n0 = n1
 	n1 = n2
 	i = i + 1
-done
+}

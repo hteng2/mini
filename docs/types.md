@@ -1,6 +1,6 @@
 # type spec definition
 
-types = int | bool
+types = int | bool | void
 
 ordered = int | bool
 

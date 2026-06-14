@@ -7,6 +7,11 @@ type 'a t = 'a Vars.t
 let empty = Vars.empty
 let add_scope (scopes : 'a t list) : 'a t list = empty :: scopes
 
+let pop_scope (scopes : 'a t list) : 'a t list =
+  match scopes with
+  | [] -> raise (Invalid_argument "empty scopes")
+  | _ :: scopes' -> scopes'
+
 let search_top (scopes : 'a t list) (name : string) : 'a option =
   match scopes with
   | [] -> assert false
