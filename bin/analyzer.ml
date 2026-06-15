@@ -1,5 +1,3 @@
-module Vars = Map.Make (String)
-
 type ctx = { loop : bool; func : Types.tt option }
 
 exception TypeError
@@ -64,23 +62,23 @@ let rec infer_type (expr : Ast.expr) (scopes : Types.t Scopes.t list) : Types.tt
           | Types.List t -> t
           | _ -> raise TypeError)
     | Ast.FnVal (ps, t, body) ->
-        let scope : Types.t Vars.t =
-          List.fold_left
-            (fun acc ->
-              fun ({ v = name, t; span } : Ast.param) ->
-               match Vars.find_opt name acc with
-               | None -> Vars.add name (translate_type t, Types.Const) acc
-               | Some _ ->
-                   raise (Errors.NameError { v = "name already used"; span }))
-            Vars.empty ps
+        let scopes' = Scopes.add_scope scopes in
+        let _ =
+          List.iter
+            (fun ({ v = name, t; span } : Ast.param) ->
+              match Scopes.search_top scopes' name with
+              | None ->
+                  Scopes.add_to_scope scopes' name
+                    (translate_type t, Types.Const)
+              | Some _ ->
+                  raise (Errors.NameError { v = "name already used"; span }))
+            ps
         in
         let ts =
           List.map (fun ({ v = _, t } : Ast.param) -> translate_type t) ps
         in
         let t' = translate_type t in
-        let _ =
-          infer_dec body (scope :: scopes) { loop = false; func = Some t' }
-        in
+        let _ = infer_dec body scopes' { loop = false; func = Some t' } in
         Types.Fn (t', ts)
     | Ast.FnCall (fn, args) -> (
         match infer_type fn scopes with
@@ -103,8 +101,8 @@ and infer_list es scopes =
       let t2 = infer_list es' scopes in
       if t = t2 then t else raise TypeError
 
-and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) :
-    Types.t Scopes.t list =
+and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) : unit
+    =
   match d.v with
   | Ast.Let (name, expr) ->
       let t = infer_type expr scopes in
@@ -112,56 +110,47 @@ and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) :
       | Some (_, Types.Const) -> ()
       | None -> ()
       | _ -> raise TypeError);
-      let scopes' = Scopes.add_to_scope scopes name (t, Types.Const) in
-      scopes'
+      Scopes.add_to_scope scopes name (t, Types.Const)
   | Ast.Var (name, expr) ->
       let t = infer_type expr scopes in
       (match Scopes.search_top scopes name with
       | Some _ -> raise Scopes.NameError
       | None -> ());
-      let scopes' = Scopes.add_to_scope scopes name (t, Types.Var) in
-      scopes'
+      Scopes.add_to_scope scopes name (t, Types.Var)
   | Ast.VarSet (id, expr) ->
       let t = infer_type expr scopes in
       let t2, m = get_type id scopes in
-      if m = Types.Var && t = t2 then scopes else raise TypeError
+      if m = Types.Var && t = t2 then () else raise TypeError
   | Ast.Print expr ->
       let _ = infer_type expr scopes in
-      scopes
+      ()
   | Ast.Println expr ->
       let _ = infer_type expr scopes in
-      scopes
+      ()
   | Ast.If (expr, body, body2) -> (
       let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let _ = infer_dec body scopes ctx in
-      match body2 with
-      | Some body2 ->
-          let _ = infer_dec body2 scopes ctx in
-          scopes
-      | None -> scopes)
+      infer_dec body scopes ctx;
+      match body2 with Some body2 -> infer_dec body2 scopes ctx | None -> ())
   | Ast.While (expr, body) ->
       let _ = force_type (infer_type expr scopes) Types.Bool Types.Bool in
-      let _ = infer_dec body scopes { loop = true; func = ctx.func } in
-      scopes
-  | Ast.Break | Ast.Continue -> if ctx.loop then scopes else raise CtrlError
+      infer_dec body scopes { loop = true; func = ctx.func }
+  | Ast.Break | Ast.Continue -> if ctx.loop then () else raise CtrlError
   | Ast.Return expr -> (
       match ctx.func with
       | None -> raise CtrlError
       | Some t ->
           let t1 = infer_type expr scopes in
           let _ = force_type t t1 t in
-          scopes)
-  | Ast.Block body ->
-      let _ = check_program body (Scopes.add_scope scopes) ctx in
-      scopes
+          ())
+  | Ast.Block body -> check_program body (Scopes.add_scope scopes) ctx
 
 and check_program (ds : Ast.program) (scopes : Types.t Scopes.t list)
     (ctx : ctx) =
   match ds with
   | [] -> ()
   | d :: ds' ->
-      let scope' = infer_dec d scopes ctx in
-      check_program ds' scope' ctx
+      infer_dec d scopes ctx;
+      check_program ds' scopes ctx
 
 let analyze ds =
   check_program ds (Scopes.add_scope []) { loop = false; func = None }

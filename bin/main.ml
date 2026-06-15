@@ -8,7 +8,7 @@ let handle_src (src : string) : unit =
     let p = Parser.parse tokens in
     (* let () = Debug.print_p p 0 in *)
     let _ = Analyzer.analyze p in
-    let _ = Eval.eval p [ Scopes.empty ] in
+    let _ = Eval.eval p (Scopes.add_scope []) in
     ()
   with
   | Errors.Expected { v; span = (sr, sc), (er, ec) } ->
