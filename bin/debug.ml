@@ -1,47 +1,56 @@
-let print_tokens ts =
-  let t2s t =
-    match t with
-    | Token.Num n -> Printf.sprintf "Num %d\t" n
-    | Token.Name n -> Printf.sprintf "Name %s\t" n
-    | Token.True -> "True\t"
-    | Token.False -> "False\t"
-    | Token.Lparen -> "Lparen\t"
-    | Token.Rparen -> "Rparen\t"
-    | Token.Lbrack -> "Lbrack\t"
-    | Token.Rbrack -> "Rbrack\t"
-    | Token.Lbrace -> "Lbrace\t"
-    | Token.Rbrace -> "Rbrace\t"
-    | Token.Comma -> "Comma\t"
-    | Token.Eq -> "Eq\t"
-    | Token.Gt -> "Gt\t"
-    | Token.Lt -> "Lt\t"
-    | Token.Add -> "Add\t"
-    | Token.Sub -> "Sub\t"
-    | Token.Mul -> "Mul\t"
-    | Token.Div -> "Div\t"
-    | Token.Mod -> "Mod\t"
-    | Token.And -> "And\t"
-    | Token.Or -> "Or\t"
-    | Token.Not -> "Not\t"
-    | Token.Xor -> "Xor\t"
-    | Token.Let -> "Let\t"
-    | Token.Var -> "Var\t"
-    | Token.Print -> "Print\t"
-    | Token.Println -> "Println\t"
-    | Token.If -> "If\t"
-    | Token.Else -> "Else\t"
-    | Token.While -> "While\t"
-    | Token.Break -> "Break\t"
-    | Token.Continue -> "Continue\t"
-    | Token.Fn -> "Fn\t"
-    | Token.Return -> "Return\t"
-  in
-  List.fold_left
-    (fun _ ->
-      fun ({ v; span = (sr, sc), (er, ec) } : Token.t) ->
-       Printf.printf "%s %d:%d-%d:%d\n" (t2s v) sr sc er ec;
-       ())
-    () ts
+let rec print_src src =
+  match Stream.pop src with
+  | Stream.End -> Stream.push (fun () -> Stream.End)
+  | Stream.Head (c, src') ->
+      print_char c;
+      let src'' = print_src src' in
+      Stream.push (fun () -> Stream.Head (c, src''))
+
+let t2s t =
+  match t with
+  | Token.Num n -> Printf.sprintf "Num %d\t" n
+  | Token.Name n -> Printf.sprintf "Name %s\t" n
+  | Token.True -> "True\t"
+  | Token.False -> "False\t"
+  | Token.Void -> "Void\t"
+  | Token.Lparen -> "Lparen\t"
+  | Token.Rparen -> "Rparen\t"
+  | Token.Lbrack -> "Lbrack\t"
+  | Token.Rbrack -> "Rbrack\t"
+  | Token.Lbrace -> "Lbrace\t"
+  | Token.Rbrace -> "Rbrace\t"
+  | Token.Comma -> "Comma\t"
+  | Token.Eq -> "Eq\t"
+  | Token.Gt -> "Gt\t"
+  | Token.Lt -> "Lt\t"
+  | Token.Add -> "Add\t"
+  | Token.Sub -> "Sub\t"
+  | Token.Mul -> "Mul\t"
+  | Token.Div -> "Div\t"
+  | Token.Mod -> "Mod\t"
+  | Token.And -> "And\t"
+  | Token.Or -> "Or\t"
+  | Token.Not -> "Not\t"
+  | Token.Xor -> "Xor\t"
+  | Token.Let -> "Let\t"
+  | Token.Var -> "Var\t"
+  | Token.Print -> "Print\t"
+  | Token.Println -> "Println\t"
+  | Token.If -> "If\t"
+  | Token.Else -> "Else\t"
+  | Token.While -> "While\t"
+  | Token.Break -> "Break\t"
+  | Token.Continue -> "Continue\t"
+  | Token.Fn -> "Fn\t"
+  | Token.Return -> "Return\t"
+
+let rec print_tokens ts =
+  match Stream.pop ts with
+  | Stream.End -> Stream.push (fun () -> Stream.End)
+  | Stream.Head (({ v; span = (sr, sc), (er, ec) } as token : Token.t), ts') ->
+      Printf.printf "%s %d:%d-%d:%d\n" (t2s v) sr sc er ec;
+      let ts'' = print_tokens ts' in
+      Stream.push (fun () -> Stream.Head (token, ts''))
 
 let rec print_p p lvl =
   List.fold_left
@@ -95,6 +104,7 @@ and print_expr expr lvl : unit =
   | Ast.Name n -> Printf.printf "name %s\n" n
   | Ast.True -> Printf.printf "true\n"
   | Ast.False -> Printf.printf "false\n"
+  | Ast.Void -> Printf.printf "void\n"
   | Ast.Neg e ->
       Printf.printf "neg\n";
       print_expr e (lvl + 1)

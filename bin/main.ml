@@ -1,10 +1,9 @@
 let f x = ()
 
-let handle_src (src : string) : unit =
+let handle_src (src : char Stream.t) : unit =
   try
-    let chars = src |> String.to_seq |> List.of_seq in
-    let tokens = Lexer.tokenize chars in
-    (* let () = Debug.print_tokens tokens in *)
+    let tokens = Lexer.tokenize src in
+    (* let tokens = Debug.print_tokens tokens in *)
     let p = Parser.parse tokens in
     (* let () = Debug.print_p p 0 in *)
     let _ = Analyzer.analyze p in
@@ -19,12 +18,18 @@ let handle_src (src : string) : unit =
       Printf.printf "type error: %d:%d-%d:%d\n" sr sc er ec
   | Eval.Div span -> Printf.printf "exception: division by 0\n"
   | Eval.Range span -> Printf.printf "exception: out of range\n"
-  | Scopes.NameError -> Printf.printf "exception: unrecognized name\n"
+  | Scopes.NameError n -> Printf.printf "exception: unrecognized name %s\n" n
+
+let rec src_to_stream src =
+  Stream.push (fun () ->
+      match In_channel.input_char src with
+      | Some c -> Head (c, src_to_stream src)
+      | None -> End)
 
 let () =
   if Array.length Sys.argv <> 2 then
     print_endline "expected argument <filename>"
   else
     let file = open_in Sys.argv.(1) in
-    let src = In_channel.input_all file in
+    let src = src_to_stream file in
     handle_src src

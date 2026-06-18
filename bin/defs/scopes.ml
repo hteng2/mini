@@ -1,24 +1,21 @@
 module Vars = Hashtbl.Make (String)
 
-exception NameError
+exception NameError of string
 
 type 'a t = 'a Vars.t
 
 let add_scope (scopes : 'a t list) : 'a t list = Vars.create 0 :: scopes
 
-let pop_scope (scopes : 'a t list) : 'a t list =
-  match scopes with
-  | [] -> raise (Invalid_argument "empty scopes")
-  | _ :: scopes' -> scopes'
-
 let search_top (scopes : 'a t list) (name : string) : 'a option =
   match scopes with
-  | [] -> assert false
+  | [] -> raise (Invalid_argument "empty scopes")
   | scope :: _ -> Vars.find_opt scope name
 
 let rec search_scopes (scopes : 'a t list) (name : string) : 'a =
   match scopes with
-  | [] -> raise NameError
+  | [] ->
+      print_endline "yeah";
+      raise (NameError name)
   | scope :: scopes' -> (
       match Vars.find_opt scope name with
       | None -> search_scopes scopes' name
@@ -26,7 +23,7 @@ let rec search_scopes (scopes : 'a t list) (name : string) : 'a =
 
 let rec update_scopes (scopes : 'a t list) (name : string) value : unit =
   match scopes with
-  | [] -> raise NameError
+  | [] -> raise (NameError name)
   | scope :: scopes' -> (
       match Vars.find_opt scope name with
       | None -> update_scopes scopes' name value

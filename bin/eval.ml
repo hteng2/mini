@@ -7,11 +7,7 @@ exception NoReturn of Loc.range
 
 let run_with_scope (scopes : Values.value Scopes.t list)
     (f : Values.value Scopes.t list -> 'a) : 'a =
-  let scopes' = Scopes.add_scope scopes in
-  try f scopes' with
-  | Break -> raise Break
-  | Continue -> raise Continue
-  | Return v -> raise (Return v)
+  f (Scopes.add_scope scopes)
 
 let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
     Values.value =
@@ -113,19 +109,19 @@ let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
           if 0 <= i && i < Array.length l then Array.get l i
           else raise (Range expr.span)
       | _ -> assert false)
-  | Ast.FnVal (ps, t, body) -> Values.Fn (ps, body)
+  | Ast.FnVal (ps, t, body) -> Values.Fn (ps, body, scopes)
   | Ast.FnCall (fn, args) -> (
       let fn' = eval_expr fn scopes in
       let args' = eval_exprs args scopes [] in
       match fn' with
-      | Values.Fn (ps, body) ->
-          run_with_scope scopes (fun scopes ->
+      | Values.Fn (ps, body, closure) ->
+          run_with_scope closure (fun closure' ->
               List.iter2
                 (fun ({ v = name, _ } : Ast.param) ->
-                  fun arg -> Scopes.add_to_scope scopes name arg)
+                  fun arg -> Scopes.add_to_scope closure' name arg)
                 ps args';
               try
-                eval_dec body scopes;
+                eval_dec body closure';
                 raise (NoReturn expr.span)
               with Return v -> v)
       | _ -> assert false)
@@ -218,7 +214,7 @@ and print_val (v : Values.value) =
       Printf.printf "[";
       print_arr (Array.to_list arr);
       Printf.printf "] : list"
-  | Values.Fn (ps, body) -> Printf.printf " - : function"
+  | Values.Fn (ps, body, closure) -> Printf.printf " - : function"
 
 and print_arr (arr : Values.value list) =
   match arr with
@@ -230,8 +226,4 @@ and print_arr (arr : Values.value list) =
   | [] -> assert false
 
 and eval (ds : Ast.dec list) (scopes : Values.value Scopes.t list) : unit =
-  match ds with
-  | [] -> ()
-  | d :: ds' ->
-      eval_dec d scopes;
-      eval ds' scopes
+  List.iter (fun d -> eval_dec d scopes) ds

@@ -1,8 +1,7 @@
-var i = 0
-let f = fn () void {
-	i = i + 1
-	return _
+let add = fn (a int) int(int) {
+	return fn (b int) int {
+		return a + b
+	}
 }
-println i
-let x = f ()
-println i
+
+println add (1)(2)
