@@ -33,3 +33,8 @@ let rec add_to_scope (scopes : 'a t list) (name : string) value : unit =
   match scopes with
   | [] -> raise (Invalid_argument "empty scopes")
   | scope :: scopes' -> Vars.add scope name value
+
+let rec copy_scopes (scopes : 'a t list) : 'a t list =
+  match scopes with
+  | [] -> []
+  | scope :: scopes' -> Vars.copy scope :: copy_scopes scopes'

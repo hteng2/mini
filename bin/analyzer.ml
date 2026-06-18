@@ -1,9 +1,10 @@
 type ctx = { loop : bool; func : Types.tt option }
 
-exception TypeError
+exception TypeError of string
 exception CtrlError
 
-let force_type t1 t2 = if t1 = t2 then () else raise TypeError
+let force_type t1 t2 =
+  if t1 = t2 then () else raise (TypeError "failed force_type")
 
 let rec get_type (id : Ast.identifier) (scopes : Types.t Scopes.t list) :
     Types.t =
@@ -12,7 +13,7 @@ let rec get_type (id : Ast.identifier) (scopes : Types.t Scopes.t list) :
   | Ast.IdAt (id', _) -> (
       match get_type id' scopes with
       | Types.List t, m -> (t, m)
-      | _ -> raise TypeError)
+      | _ -> raise (TypeError "list access of non-list"))
 
 let rec translate_type (t : Ast.mini_type) =
   match t.v with
@@ -72,7 +73,7 @@ let rec analyze_expr (expr : Ast.expr) (scopes : Types.t Scopes.t list) :
         force_type (analyze_expr e2 scopes) Types.Int;
         match analyze_expr e1 scopes with
         | Types.List t -> t
-        | _ -> raise TypeError)
+        | _ -> raise (TypeError "list access of non-list"))
     | Ast.FnVal (ps, t, body) ->
         let scopes' = Scopes.add_scope scopes in
         let _ =
@@ -80,10 +81,13 @@ let rec analyze_expr (expr : Ast.expr) (scopes : Types.t Scopes.t list) :
             (fun ({ v = name, t; span } : Ast.param) ->
               match Scopes.search_top scopes' name with
               | None ->
-                  Scopes.add_to_scope scopes' name
-                    (translate_type t, Types.Const)
+                  if name = "_" then ()
+                  else
+                    Scopes.add_to_scope scopes' name
+                      (translate_type t, Types.Var)
               | Some _ ->
-                  raise (Errors.NameError { v = "name already used"; span }))
+                  raise
+                    (Errors.NameError { v = "param name already used"; span }))
             ps
         in
         let ts =
@@ -100,9 +104,10 @@ let rec analyze_expr (expr : Ast.expr) (scopes : Types.t Scopes.t list) :
                 (fun arg -> fun t -> force_type t (analyze_expr arg scopes))
                 args ts;
               t
-            with Invalid_argument _ -> raise TypeError)
-        | _ -> raise TypeError)
-  with TypeError -> raise (Errors.TypeError { v = (); span = expr.span })
+            with Invalid_argument _ ->
+              raise (TypeError "argument count invalid"))
+        | _ -> raise (TypeError "call of non-function"))
+  with TypeError e -> raise (Errors.TypeError { v = e; span = expr.span })
 
 and infer_list es scopes =
   match es with
@@ -111,7 +116,7 @@ and infer_list es scopes =
   | e :: es' ->
       let t = analyze_expr e scopes in
       let t2 = infer_list es' scopes in
-      if t = t2 then t else raise TypeError
+      if t = t2 then t else raise (TypeError "list types do not match")
 
 and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) : unit
     =
@@ -121,18 +126,19 @@ and infer_dec (d : Ast.dec) (scopes : Types.t Scopes.t list) (ctx : ctx) : unit
       (match Scopes.search_top scopes name with
       | Some (_, Types.Const) -> ()
       | None -> ()
-      | _ -> raise TypeError);
-      Scopes.add_to_scope scopes name (t, Types.Const)
+      | _ -> raise (TypeError "let statement must shadow other let statements"));
+      if name = "_" then () else Scopes.add_to_scope scopes name (t, Types.Const)
   | Ast.Var (name, expr) ->
       let t = analyze_expr expr scopes in
       (match Scopes.search_top scopes name with
       | Some _ -> raise (Scopes.NameError name)
       | None -> ());
-      Scopes.add_to_scope scopes name (t, Types.Var)
+      if name = "_" then () else Scopes.add_to_scope scopes name (t, Types.Var)
   | Ast.VarSet (id, expr) ->
       let t = analyze_expr expr scopes in
       let t2, m = get_type id scopes in
-      if m = Types.Var && t = t2 then () else raise TypeError
+      if m = Types.Var && t = t2 then ()
+      else raise (TypeError "cannot reassign non-variables")
   | Ast.Print expr ->
       let _ = analyze_expr expr scopes in
       ()

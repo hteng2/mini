@@ -118,7 +118,9 @@ let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
           run_with_scope closure (fun closure' ->
               List.iter2
                 (fun ({ v = name, _ } : Ast.param) ->
-                  fun arg -> Scopes.add_to_scope closure' name arg)
+                  fun arg ->
+                   if name = "_" then ()
+                   else Scopes.add_to_scope closure' name arg)
                 ps args';
               try
                 eval_dec body closure';
@@ -164,10 +166,10 @@ and eval_dec (d : Ast.dec) (scopes : Values.value Scopes.t list) : unit =
   match d.v with
   | Ast.Let (name, expr) ->
       let v = eval_expr expr scopes in
-      Scopes.add_to_scope scopes name v
+      if name = "_" then () else Scopes.add_to_scope scopes name v
   | Ast.Var (name, expr) ->
       let v = eval_expr expr scopes in
-      Scopes.add_to_scope scopes name v
+      if name = "_" then () else Scopes.add_to_scope scopes name v
   | Ast.VarSet (id, expr) -> eval_varset id expr scopes
   | Ast.Print expr ->
       let v = eval_expr expr scopes in

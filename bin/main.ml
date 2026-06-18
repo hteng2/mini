@@ -5,7 +5,7 @@ let handle_src (src : char Stream.t) : unit =
     let tokens = Lexer.tokenize src in
     (* let tokens = Debug.print_tokens tokens in *)
     let p = Parser.parse tokens in
-    (* let () = Debug.print_p p 0 in *)
+    let () = Debug.print_p p 0 in
     let _ = Analyzer.analyze p in
     let _ = Eval.eval p (Scopes.add_scope []) in
     ()
@@ -15,7 +15,7 @@ let handle_src (src : char Stream.t) : unit =
   | Errors.Unexpected { v; span = (sr, sc), (er, ec) } ->
       Printf.printf "error: %d:%d-%d:%d - unexpected %s\n" sr sc er ec v
   | Errors.TypeError { v; span = (sr, sc), (er, ec) } ->
-      Printf.printf "type error: %d:%d-%d:%d\n" sr sc er ec
+      Printf.printf "type error: %d:%d-%d:%d %s\n" sr sc er ec v
   | Eval.Div span -> Printf.printf "exception: division by 0\n"
   | Eval.Range span -> Printf.printf "exception: out of range\n"
   | Scopes.NameError n -> Printf.printf "exception: unrecognized name %s\n" n

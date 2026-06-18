@@ -52,6 +52,12 @@ let rec print_tokens ts =
       let ts'' = print_tokens ts' in
       Stream.push (fun () -> Stream.Head (token, ts''))
 
+let print_range (((a, b), (c, d)) : Loc.range) =
+  let s = Printf.sprintf "%d:%d - %d:%d" a b c d in
+  let s2 = String.make (20 - String.length s) ' ' in
+  Printf.printf "%s%s| " s s2;
+  ()
+
 let rec print_p p lvl =
   List.fold_left
     (fun _ ->
@@ -61,6 +67,7 @@ let rec print_p p lvl =
     () p
 
 and print_dec (dec : Ast.dec) lvl =
+  print_range dec.span;
   print_string (String.make (2 * lvl) ' ');
   match dec.v with
   | Ast.Let (n, e) ->
@@ -98,6 +105,7 @@ and print_dec (dec : Ast.dec) lvl =
       print_p ds (lvl + 1)
 
 and print_expr expr lvl : unit =
+  print_range expr.span;
   print_string (String.make (2 * lvl) ' ');
   match expr.v with
   | Ast.Num n -> Printf.printf "%d\n" n
@@ -176,18 +184,19 @@ and print_expr expr lvl : unit =
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
 
 and print_param (param : Ast.param) lvl =
+  print_range param.span;
   print_string (String.make (2 * lvl) ' ');
   let name, t = param.v in
-  Printf.printf "param\n";
-  print_string (String.make (2 * (lvl + 1)) ' ');
-  Printf.printf "%s\n" name;
+  Printf.printf "param %s\n" name;
   print_type t (lvl + 1)
 
 and print_type t lvl =
+  print_range t.span;
   print_string (String.make (2 * lvl) ' ');
   Printf.printf "<type>\n"
 
 and print_id id lvl =
+  print_range id.span;
   print_string (String.make (2 * lvl) ' ');
   match id.v with
   | Ast.IdName name -> Printf.printf "%s\n" name

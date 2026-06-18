@@ -19,7 +19,7 @@ let c2t c =
   | '|' -> Some Token.Or
   | '!' -> Some Token.Not
   | '^' -> Some Token.Xor
-  | '_' -> Some Token.Void
+  | '.' -> Some Token.Void
   | _ -> None
 
 let n2t n =
@@ -50,7 +50,8 @@ and t (src : char Stream.t) ((row, col) as head : int * int) : Token.t Stream.t
           let src = Stream.push (fun () -> front) in
           if c = '\n' then Stream.pop (t src' (row + 1, 1))
           else if Char.Ascii.is_white c then Stream.pop (t src' (row, col + 1))
-          else if Char.Ascii.is_letter c then t_name src [] (head, head)
+          else if Char.Ascii.is_letter c || c = '_' then
+            t_name src [] (head, head)
           else if Char.Ascii.is_digit c then t_num src 0 (head, head)
           else if c = '#' then t_comment src head
           else if Char.Ascii.is_print c then t_op src (head, head)
@@ -61,7 +62,7 @@ and t_name (src : char Stream.t) (s0 : char list)
     ((start, ((row, col) as head)) as span : (int * int) * (int * int)) :
     Token.t Stream.front =
   match Stream.pop src with
-  | Stream.Head (c, src') when Char.Ascii.is_alphanum c ->
+  | Stream.Head (c, src') when Char.Ascii.is_alphanum c || c = '_' ->
       t_name src' (c :: s0) (start, (row, col + 1))
   | front ->
       let name = String.of_seq (List.to_seq (List.rev s0)) in

@@ -406,7 +406,7 @@ and parse_dec (ts : Token.t Stream.t) : Token.t Stream.t * Ast.dec option =
       (ts2, Some { v = Ast.Return expr; span = (start_loc, end_loc) })
   | Stream.Head ({ v = Token.Lbrace; span = start_loc, end_loc }, ts1) ->
       let ts2, body = p ts1 in
-      let ts3, _ =
+      let ts3, (_, end_loc) =
         (bind_x Token.Rbrace) { v = "'}'"; span = (start_loc, end_loc) } ts2
       in
       (ts3, Some { v = Ast.Block body; span = (start_loc, end_loc) })
