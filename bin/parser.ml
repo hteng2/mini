@@ -187,23 +187,31 @@ and parse_expr (ts : Token.t Stream.t) (min_bp : int) :
       | Token.False ->
           let ts'', expr = advance_expr ts' min_bp { v = Ast.False; span } in
           (ts'', Some expr)
-      | Token.Void ->
-          let ts'', expr = advance_expr ts' min_bp { v = Ast.Void; span } in
-          (ts'', Some expr)
-      | Token.Lparen ->
-          let ts'', (inner : Ast.expr) =
-            bind_expr 0 { v = "following expression"; span } ts'
-          in
-          let ts''', span2 =
-            bind_x Token.Rparen { v = "closing )"; span } ts''
-          in
-          let start_loc, _ = span in
-          let _, end_loc = span2 in
-          let ts'''', expr =
-            advance_expr ts''' min_bp
-              { v = inner.v; span = (start_loc, end_loc) }
-          in
-          (ts'''', Some expr)
+      | Token.Lparen -> (
+          let front' = Stream.pop ts' in
+          match front' with
+          | Stream.Head ({ v = Token.Rparen; span = _, end_loc }, ts'') ->
+              let start_loc, _ = span in
+              let ts''', expr =
+                advance_expr ts'' min_bp
+                  { v = Ast.Void; span = (start_loc, end_loc) }
+              in
+              (ts''', Some expr)
+          | _ ->
+              let old_ts' = Stream.push (fun () -> front') in
+              let ts'', (inner : Ast.expr) =
+                bind_expr 0 { v = "following expression"; span } old_ts'
+              in
+              let ts''', span2 =
+                bind_x Token.Rparen { v = "closing )"; span } ts''
+              in
+              let start_loc, _ = span in
+              let _, end_loc = span2 in
+              let ts'''', expr =
+                advance_expr ts''' min_bp
+                  { v = inner.v; span = (start_loc, end_loc) }
+              in
+              (ts'''', Some expr))
       | Token.Lbrack ->
           let ts'', es = parse_exprs ts' in
           let ts''', (_, end_loc) =

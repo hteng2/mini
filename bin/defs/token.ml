@@ -4,7 +4,6 @@ type token =
   | Name of string
   | True
   | False
-  | Void
   (* structures *)
   | Lparen
   | Rparen

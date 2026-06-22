@@ -12,7 +12,6 @@ let t2s t =
   | Token.Name n -> Printf.sprintf "Name %s\t" n
   | Token.True -> "True\t"
   | Token.False -> "False\t"
-  | Token.Void -> "Void\t"
   | Token.Lparen -> "Lparen\t"
   | Token.Rparen -> "Rparen\t"
   | Token.Lbrack -> "Lbrack\t"
@@ -193,7 +192,15 @@ and print_param (param : Ast.param) lvl =
 and print_type t lvl =
   print_range t.span;
   print_string (String.make (2 * lvl) ' ');
-  Printf.printf "<type>\n"
+  match t.v with
+  | Ast.MtBase s -> Printf.printf "%s\n" s
+  | Ast.MtList t' ->
+      Printf.printf "list\n";
+      print_type t' (lvl + 1)
+  | Ast.MtFn (t', ts) ->
+      Printf.printf "fn\n";
+      print_type t' (lvl + 1);
+      List.iter (fun t -> print_type t (lvl + 1)) ts
 
 and print_id id lvl =
   print_range id.span;

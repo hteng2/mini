@@ -2,13 +2,15 @@ let f x = ()
 
 let handle_src (src : char Stream.t) : unit =
   try
-    let tokens = Lexer.tokenize src in
-    (* let tokens = Debug.print_tokens tokens in *)
-    let p = Parser.parse tokens in
-    let () = Debug.print_p p 0 in
-    let _ = Analyzer.analyze p in
-    let _ = Eval.eval p (Scopes.add_scope []) in
-    ()
+    let p =
+      src |> Lexer.tokenize
+      (* |> Debug.print_tokens *)
+      |> Parser.parse
+    in
+    Debug.print_p p 0;
+    let _, ir = Analyzer.analyze p in
+    print_endline "ok";
+    Eval.eval ir (Closure.empty () :: [])
   with
   | Errors.Expected { v; span = (sr, sc), (er, ec) } ->
       Printf.printf "error: %d:%d-%d:%d - expected %s\n" sr sc er ec v
@@ -16,9 +18,8 @@ let handle_src (src : char Stream.t) : unit =
       Printf.printf "error: %d:%d-%d:%d - unexpected %s\n" sr sc er ec v
   | Errors.TypeError { v; span = (sr, sc), (er, ec) } ->
       Printf.printf "type error: %d:%d-%d:%d %s\n" sr sc er ec v
-  | Eval.Div span -> Printf.printf "exception: division by 0\n"
-  | Eval.Range span -> Printf.printf "exception: out of range\n"
-  | Scopes.NameError n -> Printf.printf "exception: unrecognized name %s\n" n
+  | Eval.Div -> Printf.printf "exception: division by 0\n"
+  | Eval.Range -> Printf.printf "exception: out of range\n"
 
 let rec src_to_stream src =
   Stream.push (fun () ->
@@ -27,6 +28,7 @@ let rec src_to_stream src =
       | None -> End)
 
 let () =
+  print_newline ();
   if Array.length Sys.argv <> 2 then
     print_endline "expected argument <filename>"
   else

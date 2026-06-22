@@ -1,6 +1,10 @@
-type value =
+type v =
   | Int of int
   | Bool of bool
   | Void
-  | List of value array
-  | Fn of Ast.param list * Ast.dec * value Scopes.t list
+  | List of v ref array
+  | Fn of string list * value Closure.t * Ir.dec
+
+and value = Var of v ref | Const of v
+
+let value_to_v value = match value with Var v -> !v | Const v -> v

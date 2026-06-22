@@ -19,7 +19,6 @@ let c2t c =
   | '|' -> Some Token.Or
   | '!' -> Some Token.Not
   | '^' -> Some Token.Xor
-  | '.' -> Some Token.Void
   | _ -> None
 
 let n2t n =

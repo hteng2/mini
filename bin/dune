@@ -3,4 +3,5 @@
 (executable
  (public_name mini)
  (name main)
- (libraries mini))
+ (libraries mini)
+ (modes byte exe))

@@ -1,184 +1,183 @@
-exception Div of Loc.range
-exception Range of Loc.range
+exception Div
+exception Range
 exception Break
 exception Continue
-exception Return of Values.value
-exception NoReturn of Loc.range
+exception Return of Values.v
+exception NoReturn
 
-let run_with_scope (scopes : Values.value Scopes.t list)
-    (f : Values.value Scopes.t list -> 'a) : 'a =
-  f (Scopes.add_scope scopes)
+let run_with_scope (scopes : Values.value Closure.t list)
+    (f : Values.value Closure.t list -> 'a) : 'a =
+  f (Closure.empty () :: scopes)
 
-let rec eval_expr (expr : Ast.expr) (scopes : Values.value Scopes.t list) :
-    Values.value =
-  match expr.v with
-  | Ast.Num n -> Values.Int n
-  | Ast.Name name -> Scopes.search_scopes scopes name
-  | Ast.True -> Values.Bool true
-  | Ast.False -> Values.Bool false
-  | Ast.Void -> Values.Void
-  | Ast.Neg expr' -> (
+let rec eval_expr (expr : Ir.expr) (scopes : Values.value Closure.t list) :
+    Values.v =
+  match expr with
+  | Ir.Num n -> Values.Int n
+  | Ir.Name name -> Values.value_to_v (Option.get (Closure.search scopes name))
+  | Ir.True -> Values.Bool true
+  | Ir.False -> Values.Bool false
+  | Ir.Void -> Values.Void
+  | Ir.Neg expr' -> (
       match eval_expr expr' scopes with
       | Values.Int n -> Values.Int (-n)
       | _ -> assert false)
-  | Ast.Pos expr' -> (
+  | Ir.Pos expr' -> (
       match eval_expr expr' scopes with
       | Values.Int n -> Values.Int n
       | _ -> assert false)
-  | Ast.Not expr' -> (
+  | Ir.Not expr' -> (
       match eval_expr expr' scopes with
       | Values.Bool b -> Values.Bool (not b)
       | _ -> assert false)
-  | Ast.Eq (e1, e2) -> (
+  | Ir.Eq (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Bool v1, Values.Bool v2 -> Values.Bool (v1 = v2)
       | Values.Int v1, Values.Int v2 -> Values.Bool (v1 = v2)
       | _ -> assert false)
-  | Ast.Gt (e1, e2) -> (
+  | Ir.Gt (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Int v1, Values.Int v2 -> Values.Bool (v1 > v2)
       | _ -> assert false)
-  | Ast.Lt (e1, e2) -> (
+  | Ir.Lt (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Int v1, Values.Int v2 -> Values.Bool (v1 < v2)
       | _ -> assert false)
-  | Ast.Add (e1, e2) -> (
+  | Ir.Add (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 + v2)
       | _ -> assert false)
-  | Ast.Sub (e1, e2) -> (
+  | Ir.Sub (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 - v2)
       | _ -> assert false)
-  | Ast.Mul (e1, e2) -> (
+  | Ir.Mul (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 * v2)
       | _ -> assert false)
-  | Ast.Div (e1, e2) -> (
+  | Ir.Div (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
-      | Values.Int v1, Values.Int 0 -> raise (Div expr.span)
+      | Values.Int v1, Values.Int 0 -> raise Div
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 / v2)
       | _ -> assert false)
-  | Ast.Mod (e1, e2) -> (
+  | Ir.Mod (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
-      | Values.Int v1, Values.Int 0 -> raise (Div expr.span)
+      | Values.Int v1, Values.Int 0 -> raise Div
       | Values.Int v1, Values.Int v2 -> Values.Int (v1 mod v2)
       | _ -> assert false)
-  | Ast.And (e1, e2) -> (
+  | Ir.And (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Bool v1, Values.Bool v2 -> Values.Bool (v1 && v2)
       | _ -> assert false)
-  | Ast.Or (e1, e2) -> (
+  | Ir.Or (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Bool v1, Values.Bool v2 -> Values.Bool (v1 || v2)
       | _ -> assert false)
-  | Ast.Xor (e1, e2) -> (
+  | Ir.Xor (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.Bool v1, Values.Bool v2 -> Values.Bool (v1 <> v2)
       | _ -> assert false)
-  | Ast.List es ->
+  | Ir.List es ->
       let vs = eval_exprs es scopes [] in
-      Values.List (Array.of_list vs)
-  | Ast.At (e1, e2) -> (
+      Values.List (Array.of_list (List.map ref vs))
+  | Ir.At (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.List l, Values.Int i ->
-          if 0 <= i && i < Array.length l then Array.get l i
-          else raise (Range expr.span)
+          if 0 <= i && i < Array.length l then !(Array.get l i) else raise Range
       | _ -> assert false)
-  | Ast.FnVal (ps, t, body) -> Values.Fn (ps, body, scopes)
-  | Ast.FnCall (fn, args) -> (
+  | Ir.FnVal (ps, c, body) ->
+      let c' = Closure.empty () in
+      Closure.iter
+        (fun name _ ->
+          Closure.set c' name (Option.get (Closure.search scopes name)))
+        c;
+      Values.Fn (ps, c', body)
+  | Ir.FnCall (fn, args) -> (
       let fn' = eval_expr fn scopes in
       let args' = eval_exprs args scopes [] in
       match fn' with
-      | Values.Fn (ps, body, closure) ->
-          run_with_scope closure (fun closure' ->
-              List.iter2
-                (fun ({ v = name, _ } : Ast.param) ->
-                  fun arg ->
-                   if name = "_" then ()
-                   else Scopes.add_to_scope closure' name arg)
-                ps args';
-              try
-                eval_dec body closure';
-                raise (NoReturn expr.span)
-              with Return v -> v)
+      | Values.Fn (ps, closure, body) -> (
+          List.iter2
+            (fun name ->
+              fun arg ->
+               if name = "_" then ()
+               else Closure.set closure name (Values.Var (ref arg)))
+            ps args';
+          try
+            eval_dec body [ closure ];
+            raise NoReturn
+          with Return v -> v)
       | _ -> assert false)
 
-and eval_exprs es scopes acc =
+and eval_exprs es scopes acc : Values.v list =
   match es with
   | [] -> acc
   | e :: es' ->
       let v = eval_expr e scopes in
       eval_exprs es' scopes (v :: acc)
 
-and eval_id (id : Ast.identifier) (scopes : Values.value Scopes.t list) :
-    Values.value =
-  match id.v with
-  | Ast.IdName name -> Scopes.search_scopes scopes name
-  | Ast.IdAt (id', e) -> (
-      let id'' = eval_id id' scopes in
+and id_to_ref (id : Ir.identifier) (scopes : Values.value Closure.t list) :
+    Values.v ref =
+  match id with
+  | Ir.IdName name -> (
+      match Closure.search scopes name with
+      | Some (Values.Var v) -> v
+      | _ -> assert false)
+  | Ir.IdAt (id', e) -> (
+      let r = id_to_ref id' scopes in
       let v = eval_expr e scopes in
-      match (id'', v) with
-      | Values.List l, Values.Int n -> l.(n)
+      match (r, v) with
+      | { contents = Values.List l }, Values.Int n -> l.(n)
       | _ -> assert false)
 
-and eval_varset (id : Ast.identifier) (e : Ast.expr)
-    (scopes : Values.value Scopes.t list) : unit =
-  match id.v with
-  | Ast.IdName name ->
-      let v = eval_expr e scopes in
-      Scopes.update_scopes scopes name v
-  | Ast.IdAt (id', n) -> (
-      let id'' = eval_id id' scopes in
-      let i = eval_expr n scopes in
-      let v = eval_expr e scopes in
-      match (id'', i) with
-      | Values.List l, Values.Int i ->
-          if 0 <= i && i < Array.length l then l.(i) <- v
-          else raise (Range id.span)
-      | _ -> assert false)
+and eval_varset (id : Ir.identifier) (e : Ir.expr)
+    (scopes : Values.value Closure.t list) : unit =
+  let r = id_to_ref id scopes in
+  let v = eval_expr e scopes in
+  r := v
 
-and eval_dec (d : Ast.dec) (scopes : Values.value Scopes.t list) : unit =
-  match d.v with
-  | Ast.Let (name, expr) ->
+and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
+  match d with
+  | Ir.Let (name, expr) ->
       let v = eval_expr expr scopes in
-      if name = "_" then () else Scopes.add_to_scope scopes name v
-  | Ast.Var (name, expr) ->
+      if name = "_" then ()
+      else Closure.set (List.nth scopes 0) name (Values.Const v)
+  | Ir.Var (name, expr) ->
       let v = eval_expr expr scopes in
-      if name = "_" then () else Scopes.add_to_scope scopes name v
-  | Ast.VarSet (id, expr) -> eval_varset id expr scopes
-  | Ast.Print expr ->
+      if name = "_" then ()
+      else Closure.set (List.nth scopes 0) name (Values.Var (ref v))
+  | Ir.VarSet (id, expr) -> eval_varset id expr scopes
+  | Ir.Print expr ->
       let v = eval_expr expr scopes in
       print_val v
-  | Ast.Println expr ->
+  | Ir.Println expr ->
       let v = eval_expr expr scopes in
       print_val v;
       print_newline ()
-  | Ast.If (expr, body1, body2) -> (
+  | Ir.If (expr, body1, body2) -> (
       let v = eval_expr expr scopes in
       match (v, body2) with
       | Values.Bool true, _ ->
@@ -186,7 +185,7 @@ and eval_dec (d : Ast.dec) (scopes : Values.value Scopes.t list) : unit =
       | Values.Bool false, Some body2 ->
           run_with_scope scopes (fun scopes'' -> eval_dec body2 scopes'')
       | _ -> ())
-  | Ast.While (expr, body) ->
+  | Ir.While (expr, body) ->
       let rec run () =
         let v = eval_expr expr scopes in
         match v with
@@ -200,25 +199,25 @@ and eval_dec (d : Ast.dec) (scopes : Values.value Scopes.t list) : unit =
         | _ -> ()
       in
       run ()
-  | Ast.Break -> raise Break
-  | Ast.Continue -> raise Continue
-  | Ast.Return e ->
+  | Ir.Break -> raise Break
+  | Ir.Continue -> raise Continue
+  | Ir.Return e ->
       let v = eval_expr e scopes in
       raise (Return v)
-  | Ast.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
+  | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
 
-and print_val (v : Values.value) =
+and print_val (v : Values.v) =
   match v with
   | Values.Bool v -> Printf.printf "%s : bool" (if v then "true" else "false")
   | Values.Int v -> Printf.printf "%d : int" v
   | Values.Void -> Printf.printf "void : void"
   | Values.List arr ->
       Printf.printf "[";
-      print_arr (Array.to_list arr);
+      print_arr (List.map ( ! ) (Array.to_list arr));
       Printf.printf "] : list"
   | Values.Fn (ps, body, closure) -> Printf.printf " - : function"
 
-and print_arr (arr : Values.value list) =
+and print_arr (arr : Values.v list) =
   match arr with
   | v :: [] -> print_val v
   | v :: arr' ->
@@ -227,5 +226,5 @@ and print_arr (arr : Values.value list) =
       print_arr arr'
   | [] -> assert false
 
-and eval (ds : Ast.dec list) (scopes : Values.value Scopes.t list) : unit =
+and eval (ds : Ir.dec list) (scopes : Values.value Closure.t list) : unit =
   List.iter (fun d -> eval_dec d scopes) ds

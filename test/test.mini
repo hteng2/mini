@@ -1,0 +1,17 @@
+let add_xy = fn (x int) int(int) {
+	return fn (y int) int {
+		return x + y
+	}
+}
+
+let do_twice = fn (f int(int)) int(int) {
+	return fn (x int) int {
+		return f(f(x))
+	}
+}
+
+let add1 = add_xy(1)
+
+let add2 = do_twice(add1)
+
+println(add2(1))
