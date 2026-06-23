@@ -1,6 +1,7 @@
 type v =
   | Int of int
   | Bool of bool
+  | Str of string
   | Void
   | List of v ref array
   | Fn of string list * value Closure.t * Ir.dec

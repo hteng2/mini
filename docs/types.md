@@ -1,10 +1,12 @@
 # type spec definition
 
-types = int | bool | void
+types = int | bool | string | void
 
 ordered = int | bool
 
 Num : int
+
+Str : string
 
 Name : types
 

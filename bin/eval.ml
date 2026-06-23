@@ -13,6 +13,7 @@ let rec eval_expr (expr : Ir.expr) (scopes : Values.value Closure.t list) :
     Values.v =
   match expr with
   | Ir.Num n -> Values.Int n
+  | Ir.Str s -> Values.Str s
   | Ir.Name name -> Values.value_to_v (Option.get (Closure.search scopes name))
   | Ir.True -> Values.Bool true
   | Ir.False -> Values.Bool false
@@ -170,13 +171,12 @@ and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
       if name = "_" then ()
       else Closure.set (List.nth scopes 0) name (Values.Var (ref v))
   | Ir.VarSet (id, expr) -> eval_varset id expr scopes
-  | Ir.Print expr ->
+  | Ir.Print expr -> (
       let v = eval_expr expr scopes in
-      print_val v
-  | Ir.Println expr ->
+      match v with Values.Str s -> print_string s | _ -> assert false)
+  | Ir.Println expr -> (
       let v = eval_expr expr scopes in
-      print_val v;
-      print_newline ()
+      match v with Values.Str s -> print_endline s | _ -> assert false)
   | Ir.If (expr, body1, body2) -> (
       let v = eval_expr expr scopes in
       match (v, body2) with
@@ -205,26 +205,6 @@ and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
       let v = eval_expr e scopes in
       raise (Return v)
   | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
-
-and print_val (v : Values.v) =
-  match v with
-  | Values.Bool v -> Printf.printf "%s : bool" (if v then "true" else "false")
-  | Values.Int v -> Printf.printf "%d : int" v
-  | Values.Void -> Printf.printf "void : void"
-  | Values.List arr ->
-      Printf.printf "[";
-      print_arr (List.map ( ! ) (Array.to_list arr));
-      Printf.printf "] : list"
-  | Values.Fn (ps, body, closure) -> Printf.printf " - : function"
-
-and print_arr (arr : Values.v list) =
-  match arr with
-  | v :: [] -> print_val v
-  | v :: arr' ->
-      print_val v;
-      print_string ", ";
-      print_arr arr'
-  | [] -> assert false
 
 and eval (ds : Ir.dec list) (scopes : Values.value Closure.t list) : unit =
   List.iter (fun d -> eval_dec d scopes) ds

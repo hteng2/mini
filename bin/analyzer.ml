@@ -22,6 +22,7 @@ let rec translate_type (t : Ast.mini_type) =
   match t.v with
   | Ast.MtBase "int" -> Types.Int
   | Ast.MtBase "bool" -> Types.Bool
+  | Ast.MtBase "str" -> Types.Str
   | Ast.MtBase "void" -> Types.Void
   | Ast.MtList t' -> Types.List (translate_type t')
   | Ast.MtFn (t, ts) -> Types.Fn (translate_type t, List.map translate_type ts)
@@ -55,6 +56,7 @@ and analyze_expr (expr : Ast.expr) (scopes : Types.t Closure.t list) (ctx : ctx)
   try
     match expr.v with
     | Ast.Num n -> (Types.Int, Closure.empty (), Ir.Num n)
+    | Ast.Str s -> (Types.Str, Closure.empty (), Ir.Str s)
     | Ast.Name name -> (
         match find scopes ctx name with
         | I (t, _) -> (t, Closure.empty (), Ir.Name name)
@@ -253,68 +255,76 @@ and infer_list es scopes ctx =
 
 and infer_dec (d : Ast.dec) (scopes : Types.t Closure.t list) (ctx : ctx) :
     unit Closure.t * Ir.dec =
-  match d.v with
-  | Ast.Let (name, expr) -> (
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      match Closure.get (List.nth scopes 0) name with
-      | Some (_, Types.Const) | None ->
-          if name = "_" then ()
-          else Closure.set (List.nth scopes 0) name (t, Types.Const);
-          (c, Ir.Let (name, expr'))
-      | _ -> raise (TypeError "let statement must shadow other let statements"))
-  | Ast.Var (name, expr) -> (
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      match Closure.get (List.nth scopes 0) name with
-      | Some _ -> raise (NameError { v = "var already exists"; span = d.span })
-      | None ->
-          if name = "_" then ()
-          else Closure.set (List.nth scopes 0) name (t, Types.Var);
-          (c, Ir.Var (name, expr')))
-  | Ast.VarSet (id, expr) ->
-      let t, c1, expr' = analyze_expr expr scopes ctx in
-      let (t2, m), c2, id' = analyze_id id scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c c1;
-      Closure.merge c c2;
-      if m = Types.Var && t = t2 then (c, Ir.VarSet (id', expr'))
-      else raise (TypeError "cannot reassign non-variables")
-  | Ast.Print expr ->
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      (c, Ir.Print expr')
-  | Ast.Println expr ->
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      (c, Ir.Println expr')
-  | Ast.If (expr, body, body2) -> (
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      force_type t Types.Bool;
-      let c2, body' = infer_dec body scopes ctx in
-      Closure.merge c c2;
-      match body2 with
-      | Some body2 ->
-          let c3, body2' = infer_dec body2 scopes ctx in
-          Closure.merge c c3;
-          (c, Ir.If (expr', body', Some body2'))
-      | None -> (c, Ir.If (expr', body', None)))
-  | Ast.While (expr, body) ->
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      force_type t Types.Bool;
-      let c2, body' = infer_dec body scopes { loop = true; func = ctx.func } in
-      Closure.merge c c2;
-      (c, Ir.While (expr', body'))
-  | Ast.Break ->
-      if ctx.loop then (Closure.empty (), Ir.Break) else raise CtrlError
-  | Ast.Continue ->
-      if ctx.loop then (Closure.empty (), Ir.Continue) else raise CtrlError
-  | Ast.Return expr -> (
-      match ctx.func with
-      | None -> raise CtrlError
-      | Some (t, _) ->
-          let t1, c, expr' = analyze_expr expr scopes ctx in
-          force_type t t1;
-          (c, Ir.Return expr'))
-  | Ast.Block body ->
-      let c, body' = check_program body (Closure.empty () :: scopes) ctx in
-      (c, Ir.Block body')
+  try
+    match d.v with
+    | Ast.Let (name, expr) -> (
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        match Closure.get (List.nth scopes 0) name with
+        | Some (_, Types.Const) | None ->
+            if name = "_" then ()
+            else Closure.set (List.nth scopes 0) name (t, Types.Const);
+            (c, Ir.Let (name, expr'))
+        | _ ->
+            raise (TypeError "let statement must shadow other let statements"))
+    | Ast.Var (name, expr) -> (
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        match Closure.get (List.nth scopes 0) name with
+        | Some _ ->
+            raise (NameError { v = "var already exists"; span = d.span })
+        | None ->
+            if name = "_" then ()
+            else Closure.set (List.nth scopes 0) name (t, Types.Var);
+            (c, Ir.Var (name, expr')))
+    | Ast.VarSet (id, expr) ->
+        let t, c1, expr' = analyze_expr expr scopes ctx in
+        let (t2, m), c2, id' = analyze_id id scopes ctx in
+        let c = Closure.empty () in
+        Closure.merge c c1;
+        Closure.merge c c2;
+        if m = Types.Var && t = t2 then (c, Ir.VarSet (id', expr'))
+        else raise (TypeError "cannot reassign non-variables")
+    | Ast.Print expr ->
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        force_type t Types.Str;
+        (c, Ir.Print expr')
+    | Ast.Println expr ->
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        force_type t Types.Str;
+        (c, Ir.Println expr')
+    | Ast.If (expr, body, body2) -> (
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        force_type t Types.Bool;
+        let c2, body' = infer_dec body scopes ctx in
+        Closure.merge c c2;
+        match body2 with
+        | Some body2 ->
+            let c3, body2' = infer_dec body2 scopes ctx in
+            Closure.merge c c3;
+            (c, Ir.If (expr', body', Some body2'))
+        | None -> (c, Ir.If (expr', body', None)))
+    | Ast.While (expr, body) ->
+        let t, c, expr' = analyze_expr expr scopes ctx in
+        force_type t Types.Bool;
+        let c2, body' =
+          infer_dec body scopes { loop = true; func = ctx.func }
+        in
+        Closure.merge c c2;
+        (c, Ir.While (expr', body'))
+    | Ast.Break ->
+        if ctx.loop then (Closure.empty (), Ir.Break) else raise CtrlError
+    | Ast.Continue ->
+        if ctx.loop then (Closure.empty (), Ir.Continue) else raise CtrlError
+    | Ast.Return expr -> (
+        match ctx.func with
+        | None -> raise CtrlError
+        | Some (t, _) ->
+            let t1, c, expr' = analyze_expr expr scopes ctx in
+            force_type t t1;
+            (c, Ir.Return expr'))
+    | Ast.Block body ->
+        let c, body' = check_program body (Closure.empty () :: scopes) ctx in
+        (c, Ir.Block body')
+  with TypeError e -> raise (Errors.TypeError { v = e; span = d.span })
 
 and check_program (ds : Ast.program) (scopes : Types.t Closure.t list)
     (ctx : ctx) : unit Closure.t * Ir.program =

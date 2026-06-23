@@ -1,0 +1,6 @@
+let println_n = fn (i int) void() {
+	return fn () void {
+		println i
+		return ()
+	}
+}

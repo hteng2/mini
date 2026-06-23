@@ -1,6 +1,14 @@
 # grammar definition
 
-Start form: P
+Start form: F
+
+## file
+
+F ::= IP
+
+## imports
+
+I ::= EMPTY | `Import` `Str` I
 
 ## program
 
@@ -43,6 +51,8 @@ E ::= Atom | Arith | Logic | Comp | List | Func | Group
 Atom ::=
 
 | `Num`
+
+| `String`
 
 | `Name`
 

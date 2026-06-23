@@ -1,0 +1,3 @@
+let println_4 = println_n (4)
+
+let _ = println_4 ()

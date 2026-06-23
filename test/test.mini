@@ -1,17 +1,11 @@
-let add_xy = fn (x int) int(int) {
-	return fn (y int) int {
-		return x + y
+let store_str = fn (s str) str() {
+	return fn () str {
+		return s
 	}
 }
 
-let do_twice = fn (f int(int)) int(int) {
-	return fn (x int) int {
-		return f(f(x))
-	}
-}
+let stored_helloworld = store_str ("hello, world!")
 
-let add1 = add_xy(1)
+let helloworld = stored_helloworld()
 
-let add2 = do_twice(add1)
-
-println(add2(1))
+println helloworld

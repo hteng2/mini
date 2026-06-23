@@ -1,6 +1,7 @@
 type token =
   (* values *)
   | Num of int
+  | Str of string
   | Name of string
   | True
   | False
