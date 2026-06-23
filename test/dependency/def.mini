@@ -1,6 +1,1 @@
-let println_n = fn (i int) void() {
-	return fn () void {
-		println i
-		return ()
-	}
-}
+let magic_number = 1234

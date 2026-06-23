@@ -5,12 +5,9 @@ exception Continue
 exception Return of Values.v
 exception NoReturn
 
-let run_with_scope (scopes : Values.value Closure.t list)
-    (f : Values.value Closure.t list -> 'a) : 'a =
-  f (Closure.empty () :: scopes)
+let run_with_scope scopes f = f (Closure.empty () :: scopes)
 
-let rec eval_expr (expr : Ir.expr) (scopes : Values.value Closure.t list) :
-    Values.v =
+let rec eval_expr expr scopes =
   match expr with
   | Ir.Num n -> Values.Int n
   | Ir.Str s -> Values.Str s
@@ -133,15 +130,14 @@ let rec eval_expr (expr : Ir.expr) (scopes : Values.value Closure.t list) :
           with Return v -> v)
       | _ -> assert false)
 
-and eval_exprs es scopes acc : Values.v list =
+and eval_exprs es scopes acc =
   match es with
   | [] -> acc
   | e :: es' ->
       let v = eval_expr e scopes in
       eval_exprs es' scopes (v :: acc)
 
-and id_to_ref (id : Ir.identifier) (scopes : Values.value Closure.t list) :
-    Values.v ref =
+and id_to_ref id scopes =
   match id with
   | Ir.IdName name -> (
       match Closure.search scopes name with
@@ -154,13 +150,12 @@ and id_to_ref (id : Ir.identifier) (scopes : Values.value Closure.t list) :
       | { contents = Values.List l }, Values.Int n -> l.(n)
       | _ -> assert false)
 
-and eval_varset (id : Ir.identifier) (e : Ir.expr)
-    (scopes : Values.value Closure.t list) : unit =
+and eval_varset id e scopes =
   let r = id_to_ref id scopes in
   let v = eval_expr e scopes in
   r := v
 
-and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
+and eval_dec d scopes =
   match d with
   | Ir.Let (name, expr) ->
       let v = eval_expr expr scopes in
@@ -206,12 +201,14 @@ and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
       raise (Return v)
   | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
 
-and eval (ds : Ir.dec Stream.t) (scopes : Values.value Closure.t list) : unit =
+and eval ds scopes =
   let rec f ds =
-    match Stream.pop ds with
+    match ds () with
     | Stream.End -> ()
-    | Stream.Head (d, ds') -> eval_dec d scopes
+    | Stream.Head (d, ds') ->
+        eval_dec d scopes;
+        f ds'
   in
   f ds
 
-let run ds = eval ds (Closure.empty () :: [])
+let run ds = eval ds [ Closure.empty () ]

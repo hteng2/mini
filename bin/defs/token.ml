@@ -40,5 +40,7 @@ type token =
   | Continue
   | Fn
   | Return
+  (**)
+  | Import
 
 type t = token Loc.spanned

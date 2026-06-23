@@ -1,3 +1,5 @@
-let println_4 = println_n (4)
+import "test/dependency/def.mini"
 
-let _ = println_4 ()
+if magic_number = 1234 {
+	println "yay!"
+}
