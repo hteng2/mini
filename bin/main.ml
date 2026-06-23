@@ -1,13 +1,13 @@
 let f x = ()
 
-let parse (src : char Stream.t) (sn : string) : Ast.program =
-  try Lexer.tokenize src sn |> Parser.parse with
-  | Errors.Expected { v; span = sn, (sr, sc), (er, ec) } as e ->
+let parse (src : char Stream.t) (sn : string) : Ast.program option =
+  try Lexer.tokenize src sn |> Parser.parse |> fun x -> Some x with
+  | Errors.Expected { v; span = sn, (sr, sc), (er, ec) } ->
       Printf.printf "error: %s %d:%d-%d:%d - expected %s\n" sn sr sc er ec v;
-      raise e
-  | Errors.Unexpected { v; span = sn, (sr, sc), (er, ec) } as e ->
+      None
+  | Errors.Unexpected { v; span = sn, (sr, sc), (er, ec) } ->
       Printf.printf "error: %s %d:%d-%d:%d - unexpected %s\n" sn sr sc er ec v;
-      raise e
+      None
 
 let rec src_to_stream src =
   Stream.push (fun () ->
@@ -15,15 +15,37 @@ let rec src_to_stream src =
       | Some c -> Head (c, src_to_stream src)
       | None -> End)
 
+let rec stream_concat ss =
+  match ss with
+  | [] -> Stream.push (fun () -> Stream.End)
+  | s :: ss' ->
+      Stream.push (fun () ->
+          match Stream.pop s with
+          | Stream.Head (x, s') -> Stream.Head (x, stream_concat (s' :: ss'))
+          | Stream.End -> Stream.pop (stream_concat ss'))
+
 let () =
-  let files =
-    Array.sub Sys.argv 1 (Array.length Sys.argv - 1) |> Array.to_list
-  in
-  let asts =
-    List.map (fun name -> (open_in name |> src_to_stream |> parse) name) files
-  in
-  try
-    let _, ir = List.concat asts |> Analyzer.analyze in
-    Eval.eval ir (Closure.empty () :: [])
-  with Errors.TypeError { v; span = sn, (sr, sc), (er, ec) } ->
-    Printf.printf "type error: %s %d:%d-%d:%d %s\n" sn sr sc er ec v
+  match Array.to_list Sys.argv with
+  | [] -> assert false
+  | _ :: files -> (
+      let ast_opts =
+        files
+        |> List.map (fun name -> (open_in name |> src_to_stream |> parse) name)
+      in
+      let asts, has_error =
+        ast_opts
+        |> List.fold_left
+             (fun (u, h) ast_opt ->
+               if h then ([], true)
+               else
+                 match ast_opt with
+                 | None -> ([], true)
+                 | Some ast -> (ast :: u, false))
+             ([], false)
+      in
+      if has_error then
+        try
+          let _, ir = asts |> stream_concat |> Analyzer.analyze in
+          Eval.run ir
+        with Errors.TypeError { v; span = sn, (sr, sc), (er, ec) } ->
+          Printf.printf "type error: %s %d:%d-%d:%d %s\n" sn sr sc er ec v)

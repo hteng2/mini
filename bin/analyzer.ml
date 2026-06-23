@@ -328,13 +328,13 @@ and infer_dec (d : Ast.dec) (scopes : Types.t Closure.t list) (ctx : ctx) :
 
 and check_program (ds : Ast.program) (scopes : Types.t Closure.t list)
     (ctx : ctx) : unit Closure.t * Ir.program =
-  match ds with
-  | [] -> (Closure.empty (), [])
-  | d :: ds' ->
+  match Stream.pop ds with
+  | Stream.End -> (Closure.empty (), Stream.empty)
+  | Stream.Head (d, ds') ->
       let c, d' = infer_dec d scopes ctx in
       let c2, ds'' = check_program ds' scopes ctx in
       Closure.merge c c2;
-      (c, d' :: ds'')
+      (c, Stream.push (fun () -> Stream.Head (d', ds'')))
 
 let analyze ds =
   check_program ds (Closure.empty () :: []) { loop = false; func = None }

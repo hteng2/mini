@@ -452,20 +452,20 @@ and bind_dec e x =
       match parse_dec ts with ts', None -> None | ts', Some d -> Some (ts', d))
     e x
 
-and p (ts : Token.t Stream.t) : Token.t Stream.t * Ast.dec list =
+and p (ts : Token.t Stream.t) : Token.t Stream.t * Ast.dec Stream.t =
   let front = Stream.pop ts in
   match front with
   | Stream.End ->
       let old_ts = Stream.push (fun () -> front) in
-      (old_ts, [])
+      (old_ts, Stream.push (fun () -> Stream.End))
   | Stream.Head ({ v = Token.Rbrace }, _) ->
       let old_ts = Stream.push (fun () -> front) in
-      (old_ts, [])
+      (old_ts, Stream.push (fun () -> Stream.End))
   | Stream.Head ({ span }, _) ->
       let old_ts = Stream.push (fun () -> front) in
       let ts', d = bind_dec { v = "declaration"; span } old_ts in
       let ts'', ds = p ts' in
-      (ts'', d :: ds)
+      (ts'', Stream.push (fun () -> Stream.Head (d, ds)))
 
 let parse ts =
   let ts', ds = p ts in

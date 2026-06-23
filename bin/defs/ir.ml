@@ -49,4 +49,4 @@ and dec =
   | Block of program
   | Return of expr
 
-and program = dec list
+and program = dec Stream.t

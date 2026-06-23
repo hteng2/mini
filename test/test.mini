@@ -1,11 +1,1 @@
-let store_str = fn (s str) str() {
-	return fn () str {
-		return s
-	}
-}
-
-let stored_helloworld = store_str ("hello, world!")
-
-let helloworld = stored_helloworld()
-
-println helloworld
+let _ = "\."

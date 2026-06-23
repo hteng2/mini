@@ -206,5 +206,12 @@ and eval_dec (d : Ir.dec) (scopes : Values.value Closure.t list) : unit =
       raise (Return v)
   | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
 
-and eval (ds : Ir.dec list) (scopes : Values.value Closure.t list) : unit =
-  List.iter (fun d -> eval_dec d scopes) ds
+and eval (ds : Ir.dec Stream.t) (scopes : Values.value Closure.t list) : unit =
+  let rec f ds =
+    match Stream.pop ds with
+    | Stream.End -> ()
+    | Stream.Head (d, ds') -> eval_dec d scopes
+  in
+  f ds
+
+let run ds = eval ds (Closure.empty () :: [])

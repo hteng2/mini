@@ -58,4 +58,4 @@ and d =
   | Return of expr
 
 and dec = d Loc.spanned
-and program = dec list
+and program = dec Stream.t
