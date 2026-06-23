@@ -2,6 +2,7 @@ type token =
   (* values *)
   | Num of int
   | Str of string
+  | Char of char
   | Name of string
   | True
   | False

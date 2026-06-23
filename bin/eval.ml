@@ -10,6 +10,7 @@ let run_with_scope scopes f = f (Closure.empty () :: scopes)
 let rec eval_expr expr scopes =
   match expr with
   | Ir.Num n -> Values.Int n
+  | Ir.Char c -> Values.Char c
   | Ir.Str s -> Values.Str s
   | Ir.Name name -> Values.value_to_v (Option.get (Closure.search scopes name))
   | Ir.True -> Values.Bool true
@@ -98,13 +99,16 @@ let rec eval_expr expr scopes =
       | _ -> assert false)
   | Ir.List es ->
       let vs = eval_exprs es scopes [] in
-      Values.List (Array.of_list (List.map ref vs))
+      Values.List (Array.of_list vs)
   | Ir.At (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
       let v2 = eval_expr e2 scopes in
       match (v1, v2) with
       | Values.List l, Values.Int i ->
-          if 0 <= i && i < Array.length l then !(Array.get l i) else raise Range
+          if 0 <= i && i < Array.length l then Array.get l i else raise Range
+      | Values.Str s, Values.Int i ->
+          if 0 <= i && i < String.length s then Values.Char (String.get s i)
+          else raise Range
       | _ -> assert false)
   | Ir.FnVal (ps, c, body) ->
       let c' = Closure.empty () in
@@ -137,23 +141,39 @@ and eval_exprs es scopes acc =
       let v = eval_expr e scopes in
       eval_exprs es' scopes (v :: acc)
 
-and id_to_ref id scopes =
+and eval_varset id e scopes =
+  let rec helper id =
+    match id with
+    | Ir.IdName name -> (
+        match Closure.search scopes name with
+        | Some (Values.Var x) -> x
+        | _ -> assert false)
+    | Ir.IdAt (id', i) -> (
+        let id'' = helper id' in
+        let i' = eval_expr i scopes in
+        match (!id'', i') with
+        | Values.List l, Values.Int i -> ref l.(i)
+        | _ -> assert false)
+  in
   match id with
   | Ir.IdName name -> (
-      match Closure.search scopes name with
-      | Some (Values.Var v) -> v
-      | _ -> assert false)
-  | Ir.IdAt (id', e) -> (
-      let r = id_to_ref id' scopes in
       let v = eval_expr e scopes in
-      match (r, v) with
-      | { contents = Values.List l }, Values.Int n -> l.(n)
+      let r = Closure.search scopes name in
+      match r with Some (Values.Var r') -> r' := v | _ -> assert false)
+  | Ir.IdAt (id', i) -> (
+      let r = helper id' in
+      let i' = eval_expr i scopes in
+      let v = eval_expr e scopes in
+      match (!r, i', v) with
+      | Values.List l, Values.Int n, _ -> l.(n) <- v
+      | Values.Str s, Values.Int n, Values.Char c ->
+          let bytes = String.to_bytes s in
+          let s' =
+            Bytes.set bytes n c;
+            Bytes.to_string bytes
+          in
+          r := Values.Str s'
       | _ -> assert false)
-
-and eval_varset id e scopes =
-  let r = id_to_ref id scopes in
-  let v = eval_expr e scopes in
-  r := v
 
 and eval_dec d scopes =
   match d with

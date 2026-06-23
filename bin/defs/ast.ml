@@ -11,6 +11,7 @@ and param = p Loc.spanned
 type e =
   (* atoms *)
   | Num of int
+  | Char of char
   | Str of string
   | Name of string
   | True

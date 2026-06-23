@@ -187,6 +187,9 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
       | Token.Num n ->
           let ts'', expr = advance_expr ts' min_bp { v = Ast.Num n; span } in
           (ts'', Some expr)
+      | Token.Char c ->
+          let ts'', expr = advance_expr ts' min_bp { v = Ast.Char c; span } in
+          (ts'', Some expr)
       | Token.Str s ->
           let ts'', expr = advance_expr ts' min_bp { v = Ast.Str s; span } in
           (ts'', Some expr)

@@ -56,7 +56,8 @@ and t src sn head =
       if Char.Ascii.is_white c then (t src' sn (move_head c head)) ()
       else if Char.Ascii.is_letter c || c = '_' then
         t_name src sn [] (head, head)
-      else if c = '"' then t_string src' sn [] (head, move_head '"' head)
+      else if c = '"' then t_string src' sn [] (head, move_head c head)
+      else if c = '\'' then t_char src' sn (head, move_head c head)
       else if Char.Ascii.is_digit c then t_num src sn 0 (head, head)
       else if c = '#' then t_comment src sn head
       else if Char.Ascii.is_print c then t_op src sn (head, head)
@@ -78,11 +79,11 @@ and t_name src sn s0 (start, head) =
 
 and t_string src sn s0 (start, head) =
   match src () with
-  | Stream.Head (c, src') when c = '"' ->
+  | Stream.Head ('"', src') ->
       let str = String.of_seq (List.to_seq (List.rev s0)) in
       Stream.Head
-        ( { v = Token.Str str; span = (sn, start, move_head c head) },
-          t src' sn (move_head c head) )
+        ( { v = Token.Str str; span = (sn, start, move_head '"' head) },
+          t src' sn (move_head '"' head) )
   | Stream.Head ('\\', src') -> (
       let head = move_head '\\' head in
       match src' () with
@@ -105,6 +106,53 @@ and t_string src sn s0 (start, head) =
       raise
         (Errors.Expected
            { v = "closing \""; span = (sn, start, move_head '"' start) })
+
+and t_char src sn (start, head) =
+  match src () with
+  | Stream.Head ('\'', src') ->
+      raise (Errors.Expected { v = "character"; span = (sn, start, head) })
+  | Stream.End ->
+      raise (Errors.Expected { v = "character"; span = (sn, start, head) })
+  | Stream.Head ('\\', src') -> (
+      let head = move_head '\\' head in
+      match src' () with
+      | Stream.Head (c2, src'') -> (
+          match to_escaped c2 with
+          | None ->
+              raise
+                (Errors.Unexpected
+                   {
+                     v = "escape character";
+                     span = (sn, head, move_head c2 head);
+                   })
+          | Some c2' -> (
+              let head = move_head c2 head in
+              match src'' () with
+              | Stream.Head ('\'', src''') ->
+                  Stream.Head
+                    ( {
+                        v = Token.Char c2';
+                        span = (sn, start, move_head '\'' head);
+                      },
+                      t src''' sn (move_head '\'' head) )
+              | _ ->
+                  raise
+                    (Errors.Expected
+                       { v = "matching \'"; span = (sn, start, head) })))
+      | Stream.End ->
+          raise
+            (Errors.Expected
+               { v = "matching \'"; span = (sn, start, move_head '"' start) }))
+  | Stream.Head (c, src') -> (
+      match src' () with
+      | Stream.Head ('\'', src''') ->
+          Stream.Head
+            ( { v = Token.Char c; span = (sn, start, move_head '\'' head) },
+              t src''' sn (move_head '\'' head) )
+      | _ ->
+          raise
+            (Errors.Expected
+               { v = "matching \'"; span = (sn, start, move_head '"' start) }))
 
 and t_num src sn n0 (start, head) =
   match src () with

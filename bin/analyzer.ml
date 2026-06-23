@@ -46,6 +46,11 @@ let rec analyze_id (id : Ast.identifier) scopes ctx =
           Closure.merge c c1;
           Closure.merge c c2;
           ((t, m), c, Ir.IdAt (id'', expr'))
+      | (Types.Str, m), Types.Int ->
+          let c = Closure.empty () in
+          Closure.merge c c1;
+          Closure.merge c c2;
+          ((Types.Char, m), c, Ir.IdAt (id'', expr'))
       | (Types.List t, m), _ ->
           raise (TypeError { v = "index must be int"; span = id.span })
       | _ -> raise (TypeError { v = "list access of non-list"; span = id.span })
@@ -54,6 +59,7 @@ let rec analyze_id (id : Ast.identifier) scopes ctx =
 and analyze_expr expr scopes ctx =
   match expr.v with
   | Ast.Num n -> (Types.Int, Closure.empty (), Ir.Num n)
+  | Ast.Char c -> (Types.Char, Closure.empty (), Ir.Char c)
   | Ast.Str s -> (Types.Str, Closure.empty (), Ir.Str s)
   | Ast.Name name -> (
       match find scopes ctx name with
@@ -188,6 +194,12 @@ and analyze_expr expr scopes ctx =
           Closure.merge c cs1;
           Closure.merge c cs2;
           (t, c, Ir.At (e1', e2'))
+      | Types.Str ->
+          let t2, cs2, e2' = analyze_expr e2 scopes ctx in
+          let c = Closure.empty () in
+          Closure.merge c cs1;
+          Closure.merge c cs2;
+          (Types.Char, c, Ir.At (e1', e2'))
       | _ ->
           raise (TypeError { v = "list access of non-list"; span = expr.span }))
   | Ast.FnVal (ps, t, body) ->
@@ -270,7 +282,10 @@ and infer_dec d scopes ctx =
   | Ast.Var (name, expr) -> (
       let t, c, expr' = analyze_expr expr scopes ctx in
       match Closure.get (List.nth scopes 0) name with
-      | Some _ -> raise (NameError { v = "var already exists"; span = d.span })
+      | Some _ ->
+          raise
+            (NameError
+               { v = "variable name already used in this scope"; span = d.span })
       | None ->
           if name = "_" then ()
           else Closure.set (List.nth scopes 0) name (t, Types.Var);
@@ -282,10 +297,7 @@ and infer_dec d scopes ctx =
       Closure.merge c c1;
       Closure.merge c c2;
       if m = Types.Var && t = t2 then (c, Ir.VarSet (id', expr'))
-      else
-        raise
-          (TypeError
-             { v = "variable name already used in this scope"; span = d.span })
+      else raise (TypeError { v = "cannot modify non-variable"; span = d.span })
   | Ast.Print expr ->
       let t, c, expr' = analyze_expr expr scopes ctx in
       force_type t Types.Str { v = "expected string"; span = d.span };

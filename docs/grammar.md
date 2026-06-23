@@ -52,7 +52,9 @@ Atom ::=
 
 | `Num`
 
-| `String`
+| `Char`
+
+| `Str`
 
 | `Name`
 

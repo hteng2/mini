@@ -3,6 +3,7 @@ type closure = unit Closure.t
 type expr =
   (* atoms *)
   | Num of int
+  | Char of char
   | Str of string
   | Name of string
   | True
