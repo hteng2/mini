@@ -40,14 +40,10 @@ and dec =
   | Let of string * expr
   | Var of string * expr
   | VarSet of identifier * expr
-  | Print of expr
-  | Println of expr
   | If of expr * dec * dec option
   | While of expr * dec
   | Break
   | Continue
   (* closure captures, body *)
-  | Block of program
+  | Block of dec Queue.t
   | Return of expr
-
-and program = dec Stream.t

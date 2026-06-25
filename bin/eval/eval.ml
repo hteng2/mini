@@ -1,18 +1,78 @@
+open Mini
+
 exception Div
 exception Range
-exception Break
-exception Continue
-exception Return of Values.v
-exception NoReturn
+
+type 'a cont = {
+  break : unit -> 'a;
+  continue : unit -> 'a;
+  normal : unit -> 'a;
+  return : Values.v -> 'a;
+}
 
 let run_with_scope scopes f = f (Closure.empty () :: scopes)
 
-let rec eval_expr expr scopes =
+let rec eval ds scopes cont =
+  let rec helper ds =
+    match Queue.take_opt ds with
+    | None -> () |> cont.normal
+    | Some d -> eval_dec d scopes { cont with normal = (fun () -> helper ds) }
+  in
+  helper (Queue.copy ds)
+
+and eval_dec : 'a. Ir.dec -> Values.value Closure.t list -> 'a cont -> 'a =
+ fun d scopes cont ->
+  match d with
+  | Ir.Let (name, expr) ->
+      (let v = eval_expr expr scopes in
+       if name = "_" then ()
+       else Closure.set (List.nth scopes 0) name (Values.Const v))
+      |> cont.normal
+  | Ir.Var (name, expr) ->
+      (let v = eval_expr expr scopes in
+       if name = "_" then ()
+       else Closure.set (List.nth scopes 0) name (Values.Var (ref v)))
+      |> cont.normal
+  | Ir.VarSet (id, expr) -> eval_varset id expr scopes |> cont.normal
+  | Ir.If (expr, body1, body2) -> (
+      let v = eval_expr expr scopes in
+      match (v, body2) with
+      | Values.Bool true, _ ->
+          run_with_scope scopes (fun scopes' -> eval_dec body1 scopes' cont)
+      | Values.Bool false, Some body2 ->
+          run_with_scope scopes (fun scopes' -> eval_dec body2 scopes' cont)
+      | _ -> cont.normal ())
+  | Ir.While (expr, body) ->
+      let rec run () =
+        match eval_expr expr scopes with
+        | Values.Bool true ->
+            run_with_scope scopes (fun scopes' ->
+                eval_dec body scopes'
+                  {
+                    break = cont.normal;
+                    continue = run;
+                    normal = run;
+                    return = cont.return;
+                  })
+        | _ -> cont.normal ()
+      in
+      run ()
+  | Ir.Break -> () |> cont.break
+  | Ir.Continue -> () |> cont.continue
+  | Ir.Return e -> eval_expr e scopes |> cont.return
+  | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes' cont)
+
+and eval_expr expr scopes =
   match expr with
   | Ir.Num n -> Values.Int n
   | Ir.Char c -> Values.Char c
   | Ir.Str s -> Values.Str s
-  | Ir.Name name -> Values.value_to_v (Option.get (Closure.search scopes name))
+  | Ir.Name name -> (
+      match Closure.search scopes name with
+      | None ->
+          print_endline name;
+          exit 0
+      | Some value -> Values.value_to_v value)
   | Ir.True -> Values.Bool true
   | Ir.False -> Values.Bool false
   | Ir.Void -> Values.Void
@@ -98,7 +158,7 @@ let rec eval_expr expr scopes =
       | Values.Bool v1, Values.Bool v2 -> Values.Bool (v1 <> v2)
       | _ -> assert false)
   | Ir.List es ->
-      let vs = eval_exprs es scopes [] in
+      let vs = List.map (fun e -> eval_expr e scopes) es in
       Values.List (Array.of_list vs)
   | Ir.At (e1, e2) -> (
       let v1 = eval_expr e1 scopes in
@@ -114,32 +174,36 @@ let rec eval_expr expr scopes =
       let c' = Closure.empty () in
       Closure.iter
         (fun name _ ->
-          Closure.set c' name (Option.get (Closure.search scopes name)))
+          match Closure.search scopes name with
+          | None ->
+              print_string "a";
+              Printf.printf "\"%s\"\n" name
+          | Some value -> Closure.set c' name value)
         c;
       Values.Fn (ps, c', body)
   | Ir.FnCall (fn, args) -> (
       let fn' = eval_expr fn scopes in
-      let args' = eval_exprs args scopes [] in
+      let args' = List.map (fun arg -> eval_expr arg scopes) args in
       match fn' with
-      | Values.Fn (ps, closure, body) -> (
+      | Values.Fn (ps, closure, body) ->
           List.iter2
             (fun name ->
               fun arg ->
                if name = "_" then ()
                else Closure.set closure name (Values.Var (ref arg)))
             ps args';
-          try
-            eval_dec body [ closure ];
-            raise NoReturn
-          with Return v -> v)
+          eval_dec body [ closure ]
+            {
+              break = (fun () -> assert false);
+              continue = (fun () -> assert false);
+              normal =
+                (fun () ->
+                  Debug.print_dec body 0;
+                  assert false);
+              return = (fun v -> v);
+            }
+      | Values.Builtin body -> body args'
       | _ -> assert false)
-
-and eval_exprs es scopes acc =
-  match es with
-  | [] -> acc
-  | e :: es' ->
-      let v = eval_expr e scopes in
-      eval_exprs es' scopes (v :: acc)
 
 and eval_varset id e scopes =
   let rec helper id =
@@ -156,10 +220,9 @@ and eval_varset id e scopes =
         | _ -> assert false)
   in
   match id with
-  | Ir.IdName name -> (
+  | Ir.IdName _ ->
       let v = eval_expr e scopes in
-      let r = Closure.search scopes name in
-      match r with Some (Values.Var r') -> r' := v | _ -> assert false)
+      helper id := v
   | Ir.IdAt (id', i) -> (
       let r = helper id' in
       let i' = eval_expr i scopes in
@@ -175,60 +238,16 @@ and eval_varset id e scopes =
           r := Values.Str s'
       | _ -> assert false)
 
-and eval_dec d scopes =
-  match d with
-  | Ir.Let (name, expr) ->
-      let v = eval_expr expr scopes in
-      if name = "_" then ()
-      else Closure.set (List.nth scopes 0) name (Values.Const v)
-  | Ir.Var (name, expr) ->
-      let v = eval_expr expr scopes in
-      if name = "_" then ()
-      else Closure.set (List.nth scopes 0) name (Values.Var (ref v))
-  | Ir.VarSet (id, expr) -> eval_varset id expr scopes
-  | Ir.Print expr -> (
-      let v = eval_expr expr scopes in
-      match v with Values.Str s -> print_string s | _ -> assert false)
-  | Ir.Println expr -> (
-      let v = eval_expr expr scopes in
-      match v with Values.Str s -> print_endline s | _ -> assert false)
-  | Ir.If (expr, body1, body2) -> (
-      let v = eval_expr expr scopes in
-      match (v, body2) with
-      | Values.Bool true, _ ->
-          run_with_scope scopes (fun scopes'' -> eval_dec body1 scopes'')
-      | Values.Bool false, Some body2 ->
-          run_with_scope scopes (fun scopes'' -> eval_dec body2 scopes'')
-      | _ -> ())
-  | Ir.While (expr, body) ->
-      let rec run () =
-        let v = eval_expr expr scopes in
-        match v with
-        | Values.Bool true -> (
-            try
-              run_with_scope scopes (fun scopes'' -> eval_dec body scopes'');
-              run ()
-            with
-            | Break -> ()
-            | Continue -> run ())
-        | _ -> ()
-      in
-      run ()
-  | Ir.Break -> raise Break
-  | Ir.Continue -> raise Continue
-  | Ir.Return e ->
-      let v = eval_expr e scopes in
-      raise (Return v)
-  | Ir.Block p -> run_with_scope scopes (fun scopes' -> eval p scopes')
-
-and eval ds scopes =
-  let rec f ds =
-    match ds () with
-    | Stream.End -> ()
-    | Stream.Head (d, ds') ->
-        eval_dec d scopes;
-        f ds'
-  in
-  f ds
-
-let run ds = eval ds [ Closure.empty () ]
+let run ds =
+  let scope = Closure.empty () in
+  Builtins.Fns.iter
+    (fun name ({ def } : Builtins.builtinFn) ->
+      Closure.set scope name (Values.Const (Values.Builtin def)))
+    Builtins.builtins;
+  eval ds [ scope ]
+    {
+      break = (fun () -> assert false);
+      continue = (fun () -> assert false);
+      normal = (fun () -> ());
+      return = (fun v -> assert false);
+    }

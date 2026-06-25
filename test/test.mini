@@ -1,4 +1,11 @@
-let s = "hi!"
-println s
-s[1] = 'o'
-println s
+var ns = [0,1]
+var i = 0
+let max = 100
+while i < max {
+	let x = ns[0] + ns[1]
+	ns = [ns[1], x]
+
+	i = i + 1
+}
+
+let _ = println (itoa (ns[0]))

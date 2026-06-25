@@ -1,3 +1,5 @@
+open Mini
+
 type ctx = { loop : bool; func : (Types.tt * Types.t Closure.t list) option }
 
 exception TypeError of Errors.error
@@ -15,7 +17,12 @@ let find scopes ctx name =
       | Some (_, scopes2) -> (
           match Closure.search scopes2 name with None -> N | Some x -> E x))
 
-let force_type t1 t2 e = if t1 = t2 then () else raise (TypeError e)
+let force_type t1 t2 e =
+  if t1 = t2 then ()
+  else (
+    Debug.print_type t1 0;
+    Debug.print_type t2 0;
+    raise (TypeError e))
 
 let rec translate_type (t : Ast.mini_type) =
   match t.v with
@@ -83,7 +90,7 @@ and analyze_expr expr scopes ctx =
   | Ast.Not e ->
       let t, cs, e' = analyze_expr e scopes ctx in
       force_type t Types.Bool { v = "expected boolean"; span = e.span };
-      (Types.Int, cs, Ir.Not e')
+      (Types.Bool, cs, Ir.Not e')
   | Ast.Eq (e1, e2) ->
       let t1, cs1, e1' = analyze_expr e1 scopes ctx in
       let t2, cs2, e2' = analyze_expr e2 scopes ctx in
@@ -208,14 +215,12 @@ and analyze_expr expr scopes ctx =
       in
       let scope' = Closure.empty () in
       let names, ts =
-        List.fold_left
-          (fun (names, ts) ({ v = name, t; span } : Ast.param) ->
-            if name <> "_" then (
-              let t = translate_type t in
-              Closure.set scope' name (t, Types.Const);
-              (name :: names, t :: ts))
-            else (names, ts))
-          ([], []) ps
+        List.fold_right
+          (fun ({ v = name, t; span } : Ast.param) (names, ts) ->
+            let t = translate_type t in
+            if name <> "_" then Closure.set scope' name (t, Types.Const);
+            (name :: names, t :: ts))
+          ps ([], [])
       in
       let t' = translate_type t in
       let c, body' =
@@ -229,7 +234,7 @@ and analyze_expr expr scopes ctx =
           | None -> Closure.set c' name ()
           | Some _ -> ())
         c;
-      (Types.Fn (t', ts), c', Ir.FnVal (names, c', body'))
+      (Types.Fn (t', ts), c', Ir.FnVal (names, c, body'))
   | Ast.FnCall (fn, args) -> (
       let t, c, fn' = analyze_expr fn scopes ctx in
       match t with
@@ -258,7 +263,8 @@ and infer_list es span scopes ctx =
   | e :: es' ->
       let t1, cs1, e' = analyze_expr e scopes ctx in
       let t2, cs2, es'' = infer_list es' span scopes ctx in
-      if t1 <> t2 then raise (TypeError { v = "list types do not match"; span })
+      if t1 <> t2 && t2 != Types.Untyped then
+        raise (TypeError { v = "list types do not match"; span })
       else
         let c = Closure.empty () in
         Closure.merge c cs1;
@@ -298,14 +304,6 @@ and infer_dec d scopes ctx =
       Closure.merge c c2;
       if m = Types.Var && t = t2 then (c, Ir.VarSet (id', expr'))
       else raise (TypeError { v = "cannot modify non-variable"; span = d.span })
-  | Ast.Print expr ->
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      force_type t Types.Str { v = "expected string"; span = d.span };
-      (c, Ir.Print expr')
-  | Ast.Println expr ->
-      let t, c, expr' = analyze_expr expr scopes ctx in
-      force_type t Types.Str { v = "expected string"; span = d.span };
-      (c, Ir.Println expr')
   | Ast.If (expr, body, body2) -> (
       let t, c, expr' = analyze_expr expr scopes ctx in
       force_type t Types.Bool { v = "expected boolean"; span = expr.span };
@@ -344,22 +342,30 @@ and infer_dec d scopes ctx =
           let t1, c, expr' = analyze_expr expr scopes ctx in
           force_type t t1
             {
-              v = "return type does not declared result type";
+              v = "return type does not match declared result type";
               span = expr.span;
             };
           (c, Ir.Return expr'))
   | Ast.Block body ->
-      let c, body' = check_program body (Closure.empty () :: scopes) ctx in
+      let body' = Queue.create () in
+      let c = analyze_decs body (Closure.empty () :: scopes) body' ctx in
       (c, Ir.Block body')
 
-and check_program ds scopes ctx =
-  match ds () with
-  | Stream.End -> (Closure.empty (), fun () -> Stream.End)
-  | Stream.Head (d, ds') ->
+and analyze_decs ds scopes acc ctx =
+  match Queue.take_opt ds with
+  | None -> Closure.empty ()
+  | Some d ->
       let c, d' = infer_dec d scopes ctx in
-      let c2, ds'' = check_program ds' scopes ctx in
+      Queue.add d' acc;
+      let c2 = analyze_decs ds scopes acc ctx in
       Closure.merge c c2;
-      (c, fun () -> Stream.Head (d', ds''))
+      c
 
 let analyze ds =
-  check_program ds [ Closure.empty () ] { loop = false; func = None }
+  let c = Closure.empty () in
+  Builtins.Fns.iter
+    (fun name ({ types } : Builtins.builtinFn) -> Closure.set c name types)
+    Builtins.builtins;
+  let body = Queue.create () in
+  let _ = analyze_decs ds [ c ] body { loop = false; func = None } in
+  body

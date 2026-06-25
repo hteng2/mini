@@ -12,8 +12,6 @@
 | `Void`             | `_`                    |
 | `Let`              | `let`                  |
 | `Var`              | `var`                  |
-| `Print`            | `print`                |
-| `Println`          | `println`              |
 | `If`               | `if`                   |
 | `Else`             | `else`                 |
 | `While`            | `while`                |

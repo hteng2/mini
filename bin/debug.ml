@@ -1,3 +1,5 @@
+open Mini
+
 let rec print_src src =
   match src () with
   | Stream.End -> fun () -> Stream.End
@@ -9,6 +11,7 @@ let rec print_src src =
 let t2s t =
   match t with
   | Token.Num n -> Printf.sprintf "Num %d\t" n
+  | Token.Char c -> Printf.sprintf "Char %c\t" c
   | Token.Str s -> Printf.sprintf "Str %s\t" s
   | Token.Name n -> Printf.sprintf "Name %s\t" n
   | Token.True -> "True\t"
@@ -61,11 +64,11 @@ let print_range ((sn, (a, b), (c, d)) : Loc.range) =
   ()
 
 let rec print_p p lvl =
-  match p () with
-  | Stream.Head (d, p') ->
+  match Queue.take_opt p with
+  | Some d ->
       print_dec d lvl;
-      print_p p' lvl
-  | Stream.End -> ()
+      print_p p lvl
+  | None -> ()
 
 and print_dec (dec : Ast.dec) lvl =
   print_range dec.span;
@@ -80,12 +83,6 @@ and print_dec (dec : Ast.dec) lvl =
   | Ast.VarSet (v, e) ->
       Printf.printf "var_set\n";
       print_id v (lvl + 1);
-      print_expr e (lvl + 1)
-  | Ast.Print e ->
-      Printf.printf "print\n";
-      print_expr e (lvl + 1)
-  | Ast.Println e ->
-      Printf.printf "println\n";
       print_expr e (lvl + 1)
   | Ast.If (e, ds, ds2) -> (
       Printf.printf "if then else\n";
@@ -110,6 +107,7 @@ and print_expr expr lvl : unit =
   print_string (String.make (2 * lvl) ' ');
   match expr.v with
   | Ast.Num n -> Printf.printf "%d\n" n
+  | Ast.Char c -> Printf.printf "%c\n" c
   | Ast.Str s -> Printf.printf "%s\n" s
   | Ast.Name n -> Printf.printf "name %s\n" n
   | Ast.True -> Printf.printf "true\n"
@@ -215,12 +213,7 @@ and print_id id lvl =
       print_id id' (lvl + 1);
       print_expr expr (lvl + 1)
 
-let rec print_ir p lvl =
-  match p () with
-  | Stream.Head (d, p') ->
-      print_dec d lvl;
-      print_ir p' lvl
-  | Stream.End -> ()
+let rec print_ir p lvl = Queue.iter (fun d -> print_dec d lvl) p
 
 and print_dec (dec : Ir.dec) lvl =
   print_string (String.make (2 * lvl) ' ');
@@ -234,12 +227,6 @@ and print_dec (dec : Ir.dec) lvl =
   | Ir.VarSet (v, e) ->
       Printf.printf "var_set\n";
       print_id v (lvl + 1);
-      print_expr e (lvl + 1)
-  | Ir.Print e ->
-      Printf.printf "print\n";
-      print_expr e (lvl + 1)
-  | Ir.Println e ->
-      Printf.printf "println\n";
       print_expr e (lvl + 1)
   | Ir.If (e, ds, ds2) -> (
       Printf.printf "if then else\n";
@@ -263,6 +250,7 @@ and print_expr expr lvl : unit =
   print_string (String.make (2 * lvl) ' ');
   match expr with
   | Ir.Num n -> Printf.printf "%d\n" n
+  | Ir.Char c -> Printf.printf "%c\n" c
   | Ir.Str s -> Printf.printf "%s\n" s
   | Ir.Name n -> Printf.printf "name %s\n" n
   | Ir.True -> Printf.printf "true\n"
@@ -331,6 +319,7 @@ and print_expr expr lvl : unit =
   | Ir.FnVal (ps, t, body) ->
       Printf.printf "fnval\n";
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
+      Closure.iter (fun name _ -> print_closure name (lvl + 1)) t;
       print_dec body (lvl + 1)
   | Ir.FnCall (e, es) ->
       Printf.printf "fncall\n";
@@ -342,6 +331,11 @@ and print_param (param : string) lvl =
   let name = param in
   Printf.printf "param %s\n" name
 
+and print_closure (param : string) lvl =
+  print_string (String.make (2 * lvl) ' ');
+  let name = param in
+  Printf.printf "closure %s\n" name
+
 and print_id id lvl =
   print_string (String.make (2 * lvl) ' ');
   match id with
@@ -350,3 +344,20 @@ and print_id id lvl =
       Printf.printf "at\n";
       print_id id' (lvl + 1);
       print_expr expr (lvl + 1)
+
+let rec print_type t lvl =
+  print_string (String.make (2 * lvl) ' ');
+  match t with
+  | Types.Untyped -> print_endline "untyped"
+  | Types.Int -> print_endline "int"
+  | Types.Bool -> print_endline "bool"
+  | Types.Char -> print_endline "char"
+  | Types.Str -> print_endline "string"
+  | Types.Void -> print_endline "void"
+  | Types.List t' ->
+      print_endline "list";
+      print_type t' (lvl + 1)
+  | Types.Fn (t, ts) ->
+      print_endline "fn";
+      print_type t (lvl + 1);
+      List.iter (fun t -> print_type t (lvl + 1)) ts

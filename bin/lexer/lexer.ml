@@ -1,3 +1,5 @@
+open Mini
+
 let c2t c =
   match c with
   | '(' -> Some Token.Lparen
@@ -25,8 +27,6 @@ let n2t n =
   match n with
   | "let" -> Some Token.Let
   | "var" -> Some Token.Var
-  | "print" -> Some Token.Print
-  | "println" -> Some Token.Println
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If
@@ -43,7 +43,7 @@ let to_escaped c =
   match c with 'n' -> Some '\n' | 't' -> Some '\t' | _ -> None
 
 let move_head c (row, col) =
-  match c with '\n' -> (row + 1, col) | _ -> (row, col + 1)
+  match c with '\n' -> (row + 1, 1) | _ -> (row, col + 1)
 
 let rec tokenize src sn = t src sn (1, 1)
 

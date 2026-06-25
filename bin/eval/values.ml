@@ -1,3 +1,5 @@
+open Mini
+
 type v =
   | Int of int
   | Bool of bool
@@ -6,6 +8,7 @@ type v =
   | Void
   | List of v array
   | Fn of string list * value Closure.t * Ir.dec
+  | Builtin of (v list -> v)
 
 and value = Var of v ref | Const of v
 

@@ -1,3 +1,5 @@
+open Mini
+
 let rec scan_imports (ts : Token.t Stream.t) =
   match ts () with
   | Stream.Head ({ v = Token.Import; span = span1 }, ts') -> (
@@ -373,16 +375,6 @@ and parse_dec (ts : Token.t Stream.t) : Token.t Stream.t * Ast.dec option =
         (bind_expr 0) { v = "expression"; span = (sn, start_loc, end_loc) } ts3
       in
       (ts4, Some { v = Ast.Var (name, expr); span = (sn, start_loc, end_loc) })
-  | Stream.Head ({ v = Token.Print; span = sn, start_loc, end_loc }, ts1) ->
-      let ts2, expr =
-        (bind_expr 0) { v = "expression"; span = (sn, start_loc, end_loc) } ts1
-      in
-      (ts2, Some { v = Ast.Print expr; span = (sn, start_loc, end_loc) })
-  | Stream.Head ({ v = Token.Println; span = sn, start_loc, end_loc }, ts1) ->
-      let ts2, expr =
-        (bind_expr 0) { v = "expression"; span = (sn, start_loc, end_loc) } ts1
-      in
-      (ts2, Some { v = Ast.Println expr; span = (sn, start_loc, end_loc) })
   | Stream.Head ({ v = Token.If; span = sn, start_loc, end_loc }, ts1) -> (
       let ts2, expr =
         (bind_expr 0) { v = "expression"; span = (sn, start_loc, end_loc) } ts1
@@ -426,7 +418,8 @@ and parse_dec (ts : Token.t Stream.t) : Token.t Stream.t * Ast.dec option =
       let sn, _, end_loc = expr.span in
       (ts2, Some { v = Ast.Return expr; span = (sn, start_loc, end_loc) })
   | Stream.Head ({ v = Token.Lbrace; span = sn, start_loc, end_loc }, ts1) ->
-      let ts2, body = p ts1 in
+      let body = Queue.create () in
+      let ts2 = p ts1 body in
       let ts3, (sn, _, end_loc) =
         (bind_x Token.Rbrace) { v = "'}'"; span = (sn, start_loc, end_loc) } ts2
       in
@@ -456,23 +449,25 @@ and bind_dec e x =
       match parse_dec ts with ts', None -> None | ts', Some d -> Some (ts', d))
     e x
 
-and p ts =
+and p ts acc : Token.t Stream.t =
   let front = ts () in
   match front with
   | Stream.End ->
       let old_ts = fun () -> front in
-      (old_ts, fun () -> Stream.End)
+      old_ts
   | Stream.Head ({ v = Token.Rbrace }, _) ->
       let old_ts = fun () -> front in
-      (old_ts, fun () -> Stream.End)
+      old_ts
   | Stream.Head ({ span }, _) ->
       let old_ts = fun () -> front in
       let ts', d = bind_dec { v = "declaration"; span } old_ts in
-      let ts'', ds = p ts' in
-      (ts'', fun () -> Stream.Head (d, ds))
+      Queue.add d acc;
+      let ts'' = p ts' acc in
+      ts''
 
 let parse ts =
-  let ts', ds = p ts in
+  let ds = Queue.create () in
+  let ts' = p ts ds in
   match ts' () with
   | Stream.End -> ds
   | Stream.Head ({ span }, _) -> raise (Errors.Unexpected { v = "token"; span })
