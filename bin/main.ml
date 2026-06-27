@@ -4,8 +4,6 @@ module H = Hashtbl.Make (String)
 
 type hashset = unit H.t
 
-let f x = ()
-
 let rec src_to_stream src =
  fun () ->
   match In_channel.input_char src with
@@ -58,7 +56,6 @@ let rec parse_and_import file (files : hashset) : Ast.dec Queue.t =
 let analyze ast =
   try
     let x = Analyzer.analyze ast in
-    Debug.print_ir x 0;
     x
   with
   | Analyzer.NameError { v; span = sn, (a, b), (c, d) } ->
@@ -79,8 +76,7 @@ let () =
     match Sys.argv.(1) with
     | "i" ->
         let ast = parse_and_import absolute_path (H.create 0) in
-        let _ = ast |> analyze |> Eval.run in
-        ()
+        ast |> analyze |> Eval.run
     | "c" ->
         let ast = parse_and_import absolute_path (H.create 0) in
         ast |> analyze |> Transpiler.emit

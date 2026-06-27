@@ -246,85 +246,39 @@ and print_dec (dec : Ir.dec) lvl =
       Printf.printf "block\n";
       print_ir ds (lvl + 1)
 
-and print_expr expr lvl : unit =
+and print_expr expr lvl : unit = Array.iter (fun e -> print_e e lvl) expr
+
+and print_e expr lvl : unit =
   print_string (String.make (2 * lvl) ' ');
   match expr with
   | Ir.Num n -> Printf.printf "%d\n" n
   | Ir.Char c -> Printf.printf "%c\n" c
   | Ir.Str s -> Printf.printf "%s\n" s
   | Ir.Name n -> Printf.printf "name %s\n" n
-  | Ir.True -> Printf.printf "true\n"
-  | Ir.False -> Printf.printf "false\n"
+  | Ir.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
   | Ir.Void -> Printf.printf "void\n"
-  | Ir.Neg e ->
-      Printf.printf "neg\n";
-      print_expr e (lvl + 1)
-  | Ir.Pos e ->
-      Printf.printf "pos\n";
-      print_expr e (lvl + 1)
-  | Ir.Not e ->
-      Printf.printf "not\n";
-      print_expr e (lvl + 1)
-  | Ir.Eq (e1, e2) ->
-      Printf.printf "eq\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Gt (e1, e2) ->
-      Printf.printf "gt\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Lt (e1, e2) ->
-      Printf.printf "lt\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Add (e1, e2) ->
-      Printf.printf "add\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Sub (e1, e2) ->
-      Printf.printf "sub\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Mul (e1, e2) ->
-      Printf.printf "mul\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Div (e1, e2) ->
-      Printf.printf "div\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Mod (e1, e2) ->
-      Printf.printf "mod\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.And (e1, e2) ->
-      Printf.printf "and\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Or (e1, e2) ->
-      Printf.printf "or\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.Xor (e1, e2) ->
-      Printf.printf "xor\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
-  | Ir.List es ->
-      Printf.printf "list\n";
-      List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
-  | Ir.At (e1, e2) ->
-      Printf.printf "at\n";
-      print_expr e1 (lvl + 1);
-      print_expr e2 (lvl + 1)
+  | Ir.Neg -> Printf.printf "neg\n"
+  | Ir.Not -> Printf.printf "not\n"
+  | Ir.Eq -> Printf.printf "eq\n"
+  | Ir.Gt -> Printf.printf "gt\n"
+  | Ir.Lt -> Printf.printf "lt\n"
+  | Ir.Add -> Printf.printf "add\n"
+  | Ir.Sub -> Printf.printf "sub\n"
+  | Ir.Mul -> Printf.printf "mul\n"
+  | Ir.Div -> Printf.printf "div\n"
+  | Ir.Mod -> Printf.printf "mod\n"
+  | Ir.And -> Printf.printf "and\n"
+  | Ir.Or -> Printf.printf "or\n"
+  | Ir.Xor -> Printf.printf "xor\n"
+  | Ir.List len -> Printf.printf "list %d\n" len
+  | Ir.ListAt -> Printf.printf "list at\n"
+  | Ir.StrAt -> Printf.printf "str at\n"
   | Ir.FnVal (ps, t, body) ->
       Printf.printf "fnval\n";
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
       Closure.iter (fun name _ -> print_closure name (lvl + 1)) t;
       print_dec body (lvl + 1)
-  | Ir.FnCall (e, es) ->
-      Printf.printf "fncall\n";
-      print_expr e (lvl + 1);
-      List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
+  | Ir.FnCall len -> Printf.printf "fncall %d\n" len
 
 and print_param (param : string) lvl =
   print_string (String.make (2 * lvl) ' ');

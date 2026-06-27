@@ -1,39 +1,39 @@
 type closure = unit Closure.t
 
-type expr =
+type e =
   (* atoms *)
   | Num of int
   | Char of char
   | Str of string
   | Name of string
-  | True
-  | False
+  | Bool of bool
   | Void
   (* arith *)
-  | Neg of expr
-  | Pos of expr
-  | Add of expr * expr
-  | Sub of expr * expr
-  | Mul of expr * expr
-  | Div of expr * expr
-  | Mod of expr * expr
+  | Neg
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Mod
   (* logic *)
-  | Not of expr
-  | And of expr * expr
-  | Or of expr * expr
-  | Xor of expr * expr
+  | Not
+  | And
+  | Or
+  | Xor
   (* comp *)
-  | Eq of expr * expr
-  | Gt of expr * expr
-  | Lt of expr * expr
+  | Eq
+  | Gt
+  | Lt
   (* lists *)
-  | List of expr list
-  | At of expr * expr
+  | List of int
+  | ListAt
+  | StrAt
   (* function *)
   (* params, closure captures, body *)
   | FnVal of string list * closure * dec
-  | FnCall of expr * expr list
+  | FnCall of int
 
+and expr = e Array.t
 and identifier = IdName of string | IdAt of identifier * expr
 
 and dec =

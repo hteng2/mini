@@ -64,212 +64,290 @@ let rec analyze_id (id : Ast.identifier) scopes ctx =
       )
 
 and analyze_expr expr scopes ctx =
-  match expr.v with
-  | Ast.Num n -> (Types.Int, Closure.empty (), Ir.Num n)
-  | Ast.Char c -> (Types.Char, Closure.empty (), Ir.Char c)
-  | Ast.Str s -> (Types.Str, Closure.empty (), Ir.Str s)
-  | Ast.Name name -> (
-      match find scopes ctx name with
-      | I (t, _) -> (t, Closure.empty (), Ir.Name name)
-      | E (t, _) ->
-          let c = Closure.empty () in
-          Closure.set c name ();
-          (t, c, Ir.Name name)
-      | N -> raise (NameError { v = name; span = expr.span }))
-  | Ast.True -> (Types.Bool, Closure.empty (), Ir.True)
-  | Ast.False -> (Types.Bool, Closure.empty (), Ir.False)
-  | Ast.Void -> (Types.Void, Closure.empty (), Ir.Void)
-  | Ast.Neg e ->
-      let t, cs, e' = analyze_expr e scopes ctx in
-      force_type t Types.Int { v = "expected integer"; span = e.span };
-      (Types.Int, cs, Ir.Neg e')
-  | Ast.Pos e ->
-      let t, cs, e' = analyze_expr e scopes ctx in
-      force_type t Types.Int { v = "expected integer"; span = e.span };
-      (Types.Int, cs, Ir.Pos e')
-  | Ast.Not e ->
-      let t, cs, e' = analyze_expr e scopes ctx in
-      force_type t Types.Bool { v = "expected boolean"; span = e.span };
-      (Types.Bool, cs, Ir.Not e')
-  | Ast.Eq (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 t2 { v = "compared types must be equal"; span = expr.span };
-      (Types.Bool, c, Ir.Eq (e1', e2'))
-  | Ast.Gt (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Bool, c, Ir.Gt (e1', e2'))
-  | Ast.Lt (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Bool, c, Ir.Lt (e1', e2'))
-  | Ast.Add (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Int, c, Ir.Add (e1', e2'))
-  | Ast.Sub (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Int, c, Ir.Sub (e1', e2'))
-  | Ast.Mul (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Int, c, Ir.Mul (e1', e2'))
-  | Ast.Div (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Int, c, Ir.Div (e1', e2'))
-  | Ast.Mod (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Int { v = "expected integer"; span = e1.span };
-      force_type t2 Types.Int { v = "expected integer"; span = e2.span };
-      (Types.Int, c, Ir.Mod (e1', e2'))
-  | Ast.And (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Bool { v = "expected boolean"; span = e1.span };
-      force_type t2 Types.Bool { v = "expected boolean"; span = e1.span };
-      (Types.Bool, c, Ir.And (e1', e2'))
-  | Ast.Or (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Bool { v = "expected boolean"; span = e1.span };
-      force_type t2 Types.Bool { v = "expected boolean"; span = e1.span };
-      (Types.Bool, c, Ir.Or (e1', e2'))
-  | Ast.Xor (e1, e2) ->
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-      let c = Closure.empty () in
-      Closure.merge c cs1;
-      Closure.merge c cs2;
-      force_type t1 Types.Bool { v = "expected boolean"; span = e1.span };
-      force_type t2 Types.Bool { v = "expected boolean"; span = e1.span };
-      (Types.Bool, c, Ir.Xor (e1', e2'))
-  | Ast.List es ->
-      let t, c, es' = infer_list es expr.span scopes ctx in
-      (Types.List t, c, Ir.List es')
-  | Ast.At (e1, e2) -> (
-      let t1, cs1, e1' = analyze_expr e1 scopes ctx in
-      match t1 with
-      | Types.List t ->
-          let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-          let c = Closure.empty () in
-          Closure.merge c cs1;
-          Closure.merge c cs2;
-          (t, c, Ir.At (e1', e2'))
-      | Types.Str ->
-          let t2, cs2, e2' = analyze_expr e2 scopes ctx in
-          let c = Closure.empty () in
-          Closure.merge c cs1;
-          Closure.merge c cs2;
-          (Types.Char, c, Ir.At (e1', e2'))
-      | _ ->
-          raise (TypeError { v = "list access of non-list"; span = expr.span }))
-  | Ast.FnVal (ps, t, body) ->
-      let ctx_scopes' =
-        scopes @ match ctx.func with None -> [] | Some (_, scopes2) -> scopes2
-      in
-      let scope' = Closure.empty () in
-      let names, ts =
-        List.fold_right
-          (fun ({ v = name, t; span } : Ast.param) (names, ts) ->
-            let t = translate_type t in
-            if name <> "_" then Closure.set scope' name (t, Types.Const);
-            (name :: names, t :: ts))
-          ps ([], [])
-      in
-      let t' = translate_type t in
-      let c, body' =
-        infer_dec body [ scope' ]
-          { loop = false; func = Some (t', ctx_scopes') }
-      in
-      let c' = Closure.empty () in
-      Closure.iter
-        (fun name _ ->
-          match Closure.get scope' name with
-          | None -> Closure.set c' name ()
-          | Some _ -> ())
-        c;
-      (Types.Fn (t', ts), c', Ir.FnVal (names, c, body'))
-  | Ast.FnCall (fn, args) -> (
-      let t, c, fn' = analyze_expr fn scopes ctx in
-      match t with
-      | Types.Fn (t', ts) ->
-          if List.length ts <> List.length args then
-            raise
-              (TypeError
-                 { v = "argument count does not match"; span = expr.span })
-          else
-            let args' =
-              List.fold_left2
-                (fun acc arg t ->
-                  let t2, c2, arg' = analyze_expr arg scopes ctx in
-                  Closure.merge c c2;
-                  force_type t t2
-                    { v = "argument type does not match"; span = arg.span };
-                  arg' :: acc)
-                [] args ts
-            in
-            (t', c, Ir.FnCall (fn', args'))
-      | _ -> raise (TypeError { v = "call of non-function"; span = expr.span }))
-
-and infer_list es span scopes ctx =
-  match es with
-  | [] -> (Types.Untyped, Closure.empty (), [])
-  | e :: es' ->
-      let t1, cs1, e' = analyze_expr e scopes ctx in
-      let t2, cs2, es'' = infer_list es' span scopes ctx in
-      if t1 <> t2 && t2 != Types.Untyped then
-        raise (TypeError { v = "list types do not match"; span })
-      else
-        let c = Closure.empty () in
-        Closure.merge c cs1;
-        Closure.merge c cs2;
-        (t1, c, e' :: es'')
+  let q = Queue.create () in
+  let rec helper (expr : Ast.expr) (k : Types.tt * Ir.closure -> 'a) =
+    match expr.v with
+    | Ast.Num n ->
+        Queue.add (Ir.Num n) q;
+        (Types.Int, Closure.empty ()) |> k
+    | Ast.Char c ->
+        Queue.add (Ir.Char c) q;
+        (Types.Char, Closure.empty ()) |> k
+    | Ast.Str s ->
+        Queue.add (Ir.Str s) q;
+        (Types.Str, Closure.empty ()) |> k
+    | Ast.Name name ->
+        (match find scopes ctx name with
+          | I (t, _) ->
+              Queue.add (Ir.Name name) q;
+              (t, Closure.empty ())
+          | E (t, _) ->
+              Queue.add (Ir.Name name) q;
+              let c = Closure.empty () in
+              Closure.set c name ();
+              (t, c)
+          | N -> raise (NameError { v = name; span = expr.span }))
+        |> k
+    | Ast.True ->
+        Queue.add (Ir.Bool true) q;
+        (Types.Bool, Closure.empty ()) |> k
+    | Ast.False ->
+        Queue.add (Ir.Bool false) q;
+        (Types.Bool, Closure.empty ()) |> k
+    | Ast.Void ->
+        Queue.add Ir.Void q;
+        (Types.Void, Closure.empty ()) |> k
+    | Ast.Neg e ->
+        helper e (fun (t, cs) ->
+            force_type t Types.Int { v = "expected integer"; span = e.span };
+            Queue.add Ir.Neg q;
+            (t, cs) |> k)
+    | Ast.Pos e ->
+        helper e (fun (t, cs) ->
+            force_type t Types.Int { v = "expected integer"; span = e.span };
+            (t, cs) |> k)
+    | Ast.Not e ->
+        helper e (fun (t, cs) ->
+            force_type t Types.Bool { v = "expected boolean"; span = e.span };
+            Queue.add Ir.Not q;
+            (t, cs) |> k)
+    | Ast.Eq (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 t2
+                  { v = "compared types must be equal"; span = expr.span };
+                Queue.add Ir.Eq q;
+                (Types.Bool, c) |> k))
+    | Ast.Gt (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Gt q;
+                (Types.Bool, c) |> k))
+    | Ast.Lt (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Lt q;
+                (Types.Bool, c) |> k))
+    | Ast.Add (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Add q;
+                (Types.Int, c) |> k))
+    | Ast.Sub (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Sub q;
+                (Types.Int, c) |> k))
+    | Ast.Mul (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Mul q;
+                (Types.Int, c) |> k))
+    | Ast.Div (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Div q;
+                (Types.Int, c) |> k))
+    | Ast.Mod (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Int
+                  { v = "expected integer"; span = e1.span };
+                force_type t2 Types.Int
+                  { v = "expected integer"; span = e2.span };
+                Queue.add Ir.Mod q;
+                (Types.Int, c) |> k))
+    | Ast.And (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                force_type t2 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                Queue.add Ir.And q;
+                (Types.Bool, c) |> k))
+    | Ast.Or (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                force_type t2 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                Queue.add Ir.Or q;
+                (Types.Bool, c) |> k))
+    | Ast.Xor (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            helper e2 (fun (t2, cs2) ->
+                let c = Closure.empty () in
+                Closure.merge c cs1;
+                Closure.merge c cs2;
+                force_type t1 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                force_type t2 Types.Bool
+                  { v = "expected boolean"; span = e1.span };
+                Queue.add Ir.Xor q;
+                (Types.Bool, c) |> k))
+    | Ast.List es ->
+        let len = List.length es in
+        let rec infer_list es span k =
+          match es with
+          | [] -> (Types.Untyped, Closure.empty ()) |> k
+          | e :: es' ->
+              helper e (fun (t1, cs1) ->
+                  infer_list es' span (fun (t2, cs2) ->
+                      if t1 <> t2 && t2 != Types.Untyped then
+                        raise
+                          (TypeError { v = "list types do not match"; span })
+                      else
+                        let c = Closure.empty () in
+                        Closure.merge c cs1;
+                        Closure.merge c cs2;
+                        (t1, c) |> k))
+        in
+        infer_list es expr.span (fun (t, c) ->
+            Queue.add (Ir.List len) q;
+            (Types.List t, c) |> k)
+    | Ast.At (e1, e2) ->
+        helper e1 (fun (t1, cs1) ->
+            match t1 with
+            | Types.List t ->
+                helper e2 (fun (t2, cs2) ->
+                    let c = Closure.empty () in
+                    Closure.merge c cs1;
+                    Closure.merge c cs2;
+                    force_type t2 Types.Int
+                      { v = "expected integer"; span = e2.span };
+                    Queue.push Ir.ListAt q;
+                    (t, c) |> k)
+            | Types.Str ->
+                helper e2 (fun (t2, cs2) ->
+                    let c = Closure.empty () in
+                    Closure.merge c cs1;
+                    Closure.merge c cs2;
+                    force_type t2 Types.Int
+                      { v = "expected integer"; span = e2.span };
+                    Queue.push Ir.StrAt q;
+                    (Types.Char, c) |> k)
+            | _ ->
+                raise
+                  (TypeError { v = "list access of non-list"; span = expr.span }))
+    | Ast.FnVal (ps, t, body) ->
+        let ctx_scopes' =
+          scopes
+          @ match ctx.func with None -> [] | Some (_, scopes2) -> scopes2
+        in
+        let scope' = Closure.empty () in
+        let names, ts =
+          List.fold_right
+            (fun ({ v = name, t; span } : Ast.param) (names, ts) ->
+              let t = translate_type t in
+              if name <> "_" then Closure.set scope' name (t, Types.Const);
+              (name :: names, t :: ts))
+            ps ([], [])
+        in
+        let t' = translate_type t in
+        let c, body' =
+          infer_dec body [ scope' ]
+            { loop = false; func = Some (t', ctx_scopes') }
+        in
+        let c' = Closure.empty () in
+        (* TODO: check if this can just be copy *)
+        Closure.iter
+          (fun name _ ->
+            match Closure.get scope' name with
+            | None -> Closure.set c' name ()
+            | Some _ -> ())
+          c;
+        Queue.add (Ir.FnVal (names, c, body')) q;
+        (Types.Fn (t', ts), c') |> k
+    | Ast.FnCall (fn, args) ->
+        helper fn (fun (t, c) ->
+            match t with
+            | Types.Fn (t', ts) ->
+                let len = List.length args in
+                let rec h args ts k =
+                  match (args, ts) with
+                  | [], [] -> k ()
+                  | arg :: args', t :: ts' ->
+                      helper arg (fun (t2, c2) ->
+                          Closure.merge c c2;
+                          force_type t t2
+                            {
+                              v = "argument type does not match";
+                              span = arg.span;
+                            };
+                          h args' ts' k)
+                  | _ ->
+                      raise
+                        (TypeError
+                           {
+                             v = "argument count does not match";
+                             span = expr.span;
+                           })
+                in
+                h args ts (fun () ->
+                    Queue.add (Ir.FnCall len) q;
+                    (t', c) |> k)
+            | _ ->
+                raise
+                  (TypeError { v = "call of non-function"; span = expr.span }))
+  in
+  helper expr (fun (t, c) ->
+      (t, c, Array.init (Queue.length q) (fun _ -> Queue.take q)))
 
 and infer_dec d scopes ctx =
   match d.v with
