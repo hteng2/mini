@@ -54,4 +54,61 @@ let () =
           match i with
           | Values.Int i :: [] -> Values.Str (Int.to_string i)
           | _ -> assert false);
+    };
+
+  Fns.add builtins "ftoa"
+    {
+      types = (Types.Fn (Types.Str, [ Types.Float ]), Types.Const);
+      pure = true;
+      def =
+        (fun i ->
+          match i with
+          | Values.Float n :: [] -> Values.Str (Float.to_string n)
+          | _ -> assert false);
+    };
+
+  Fns.add builtins "ftoi"
+    {
+      types = (Types.Fn (Types.Int, [ Types.Float ]), Types.Const);
+      pure = true;
+      def =
+        (fun i ->
+          match i with
+          | Values.Float n :: [] -> Values.Int (Float.to_int n)
+          | _ -> assert false);
+    };
+
+  Fns.add builtins "itof"
+    {
+      types = (Types.Fn (Types.Float, [ Types.Int ]), Types.Const);
+      pure = true;
+      def =
+        (fun i ->
+          match i with
+          | Values.Int n :: [] -> Values.Float (Float.of_int n)
+          | _ -> assert false);
+    };
+
+  Fns.add builtins "atoi"
+    {
+      types = (Types.Fn (Types.Int, [ Types.Str ]), Types.Const);
+      pure = true;
+      def =
+        (fun s ->
+          match s with
+          | Values.Str s :: [] -> (
+              match int_of_string_opt s with
+              | Some i -> Values.Int i
+              | None -> Values.Int 0)
+          | _ -> assert false);
+    };
+
+  Fns.add builtins "rand"
+    {
+      types = (Types.Fn (Types.Float, []), Types.Const);
+      pure = false;
+      def =
+        (fun _ ->
+          Random.self_init ();
+          Values.Float (Random.float 1.0));
     }

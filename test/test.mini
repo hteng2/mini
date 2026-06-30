@@ -1,9 +1,62 @@
-let threshold = 0.00001
-let float_eq = fn (a float, b float) bool {
-	return (a-b) < threshold & (b-a) < threshold
+let randint = fn (max int) int {
+	return ftoi (rand() * itof(max))
 }
-let a = 0.
-let b = 1.
-if float_eq(a+b, 1.) {
-	let _ = println("hi")
+
+let genprice = fn (center int, range int, _ void) int {
+	return randint(range) - range/2 + center
 }
+
+let rounds = 5
+let length = 5
+let ranges = [
+	500, 	300, 	200,	150,	120,
+	100, 	80, 	60, 	50, 	30
+]
+
+let trueprice = randint(500) + 500
+
+var cash = 0
+var eqs = 0
+
+var round = 0
+while round < rounds {
+	let _ = print("initial min: ")
+	let min = atoi(readline())
+	
+	let _ = print("initial max: ")
+	let max = atoi(readline())
+
+	var t = 0
+	while t < length {
+		let price = genprice(trueprice, ranges[round], ())
+		let _ = print(itoa(price))
+
+		if price > max {
+			let _ = print(" SELL")
+			cash = cash + price
+			eqs = eqs - 1
+		}
+
+		if price < min {
+			let _ = print(" BUY")
+			cash = cash - price
+			eqs = eqs + 1
+		}
+
+		let _ = println("")
+
+		t = t + 1
+	}
+
+	let _ = print("cash: ")
+	let _ = println(itoa(cash))
+	let _ = print("eqs: ")
+	let _ = println(itoa(eqs))
+
+	round = round + 1
+}
+
+let _ = print("true price: ")
+let _ = println(itoa(trueprice))
+let _ = print("profit: ")
+let _ = println(itoa(cash + eqs * trueprice))

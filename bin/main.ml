@@ -70,7 +70,7 @@ let print_usage () =
   print_endline "usage: mini <mode> <file>";
   print_endline "\tmode : i = interpreter, c = compiler, r = runtime"
 
-let time (start, stop, print) name f =
+let time (start, stop, _) name f =
   start name;
   let res = f () in
   stop ();

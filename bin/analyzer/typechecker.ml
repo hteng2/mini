@@ -247,7 +247,7 @@ and check_expr expr scopes ctx =
       in
       let t, es' = infer_list es [] None in
       let t' = match t with Some t' -> t' | None -> Void in
-      (c_acc, (Ir1.List es', Types.List t'))
+      (c_acc, (Ir1.List (List.rev es'), Types.List t'))
   | Ast.At (e1, e2) -> (
       let cs1, (e1', t1) = check_expr e1 scopes ctx in
       match t1 with
@@ -296,16 +296,21 @@ and check_expr expr scopes ctx =
       match t with
       | Types.Fn (t', ts) ->
           let args' =
-            List.fold_left2
-              (fun acc arg t ->
-                let c2, (arg', t2) = check_expr arg scopes ctx in
-                Closure.merge c c2;
-                force_type t t2
-                  { v = "argument type does not match"; span = arg.span };
-                (arg', t2) :: acc)
-              [] args ts
+            try
+              List.fold_left2
+                (fun acc arg t ->
+                  let c2, (arg', t2) = check_expr arg scopes ctx in
+                  Closure.merge c c2;
+                  force_type t t2
+                    { v = "argument type does not match"; span = arg.span };
+                  (arg', t2) :: acc)
+                [] args ts
+            with Invalid_argument _ ->
+              raise
+                (TypeError
+                   { v = "argument count does not match"; span = expr.span })
           in
-          (c, (Ir1.FnCall ((fn', t), args'), t'))
+          (c, (Ir1.FnCall ((fn', t), List.rev args'), t'))
       | _ -> raise (TypeError { v = "call of non-function"; span = expr.span }))
 
 and check_dec d scopes ctx =
