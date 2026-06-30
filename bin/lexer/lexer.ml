@@ -58,7 +58,7 @@ and t src sn head =
         t_name src sn [] (head, head)
       else if c = '"' then t_string src' sn [] (head, move_head c head)
       else if c = '\'' then t_char src' sn (head, move_head c head)
-      else if Char.Ascii.is_digit c then t_num src sn 0 (head, head)
+      else if Char.Ascii.is_digit c then t_int src sn 0 (head, head)
       else if c = '#' then t_comment src sn head
       else if Char.Ascii.is_print c then t_op src sn (head, head)
       else
@@ -154,15 +154,29 @@ and t_char src sn (start, head) =
             (Errors.Expected
                { v = "matching \'"; span = (sn, start, move_head '"' start) }))
 
-and t_num src sn n0 (start, head) =
+and t_int src sn n0 (start, head) =
   match src () with
   | Stream.Head (c, src') when Char.Ascii.is_digit c ->
-      t_num src' sn
+      t_int src' sn
         ((10 * n0) + Char.Ascii.digit_to_int c)
+        (start, move_head c head)
+  | Stream.Head (c, src') when c = '.' ->
+      t_float src' sn (Float.of_int n0) 0.1 (start, move_head c head)
+  | front ->
+      Stream.Head
+        ( { v = Token.Int n0; span = (sn, start, head) },
+          t (fun () -> front) sn head )
+
+and t_float src sn n0 d (start, head) =
+  match src () with
+  | Stream.Head (c, src') when Char.Ascii.is_digit c ->
+      t_float src' sn
+        (Float.add n0 (Float.mul d (Float.of_int (Char.Ascii.digit_to_int c))))
+        (Float.div d 10.0)
         (start, move_head c head)
   | front ->
       Stream.Head
-        ( { v = Token.Num n0; span = (sn, start, head) },
+        ( { v = Token.Float n0; span = (sn, start, head) },
           t (fun () -> front) sn head )
 
 and t_comment src sn (row, col) =

@@ -1,6 +1,6 @@
 type tt =
-  | Untyped
   | Int
+  | Float
   | Bool
   | Char
   | Str

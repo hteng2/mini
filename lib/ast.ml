@@ -10,7 +10,8 @@ and param = p Loc.spanned
 
 type e =
   (* atoms *)
-  | Num of int
+  | Int of int
+  | Float of float
   | Char of char
   | Str of string
   | Name of string

@@ -5,7 +5,7 @@ exception Range
 
 type 'a flow =
   | Fail
-  | Next of (Ir.dec Queue.t * Values.value Closure.t list * 'a cont)
+  | Next of (Ir2.dec Array.t * int * Values.value Closure.t list * 'a cont)
   | Do of (unit -> 'a)
 
 and 'a ret = Fail | Val of (Values.v -> 'a)
@@ -21,30 +21,30 @@ let run_with_scope scopes f = f (Closure.empty () :: scopes)
 
 let rec do_flow : 'a flow -> 'a = function
   | Fail -> assert false
-  | Next (ds, scopes, cont) -> exec ds scopes cont
+  | Next (ds, i, scopes, cont) -> exec ds i scopes cont
   | Do f -> f ()
 
 and do_ret v : 'a ret -> 'a = function Fail -> assert false | Val f -> f v
 
-and exec ds scopes cont =
-  match Queue.take_opt ds with
-  | None -> do_flow cont.next
-  | Some d -> exec_dec d scopes { cont with next = Next (ds, scopes, cont) }
+and exec ds i scopes cont =
+  if Array.length ds = i then do_flow cont.next
+  else
+    exec_dec ds.(i) scopes { cont with next = Next (ds, i + 1, scopes, cont) }
 
-and exec_dec : 'a. Ir.dec -> Values.value Closure.t list -> 'a cont -> 'a =
+and exec_dec : 'a. Ir2.dec -> Values.value Closure.t list -> 'a cont -> 'a =
  fun d scopes cont ->
   match d with
-  | Ir.Let (name, expr) ->
+  | Ir2.Let (name, expr) ->
       let v = eval_expr expr scopes in
       if name <> "_" then Closure.set (List.nth scopes 0) name (Values.Const v);
       do_flow cont.next
-  | Ir.Var (name, expr) ->
+  | Ir2.Var (name, expr) ->
       let v = eval_expr expr scopes in
       if name <> "_" then
         Closure.set (List.nth scopes 0) name (Values.Var (ref v));
       do_flow cont.next
-  | Ir.VarSet (id, expr) -> exec_varset id expr scopes cont.next
-  | Ir.If (expr, body1, body2) -> (
+  | Ir2.VarSet (id, expr) -> exec_varset id expr scopes cont.next
+  | Ir2.If (expr, body1, body2) -> (
       let v = eval_expr expr scopes in
       match (v, body2) with
       | Values.Bool true, _ ->
@@ -52,7 +52,7 @@ and exec_dec : 'a. Ir.dec -> Values.value Closure.t list -> 'a cont -> 'a =
       | Values.Bool false, Some body2 ->
           run_with_scope scopes (fun scopes' -> exec_dec body2 scopes' cont)
       | _ -> do_flow cont.next)
-  | Ir.While (expr, body) ->
+  | Ir2.While (expr, body) ->
       let rec run () =
         match eval_expr expr scopes with
         | Values.Bool true ->
@@ -67,20 +67,19 @@ and exec_dec : 'a. Ir.dec -> Values.value Closure.t list -> 'a cont -> 'a =
         | _ -> do_flow cont.next
       in
       do_flow (Do run)
-  | Ir.Break -> do_flow cont.break
-  | Ir.Continue -> do_flow cont.continue
-  | Ir.Return e -> do_ret (eval_expr e scopes) cont.return
-  | Ir.Block p ->
-      run_with_scope scopes (fun scopes' -> exec (Queue.copy p) scopes' cont)
+  | Ir2.Break -> do_flow cont.break
+  | Ir2.Continue -> do_flow cont.continue
+  | Ir2.Return e -> do_ret (eval_expr e scopes) cont.return
+  | Ir2.Block p -> run_with_scope scopes (fun scopes' -> exec p 0 scopes' cont)
 
 and exec_varset id e scopes k =
   let rec helper id =
     match id with
-    | Ir.IdName name -> (
+    | Ir2.IdName name -> (
         match Closure.search scopes name with
         | Some (Values.Var x) -> x
         | _ -> assert false)
-    | Ir.IdAt (id', i) -> (
+    | Ir2.IdAt (id', i) -> (
         let id'' = helper id' in
         let i' = eval_expr i scopes in
         match (!id'', i') with
@@ -88,11 +87,11 @@ and exec_varset id e scopes k =
         | _ -> assert false)
   in
   match id with
-  | Ir.IdName _ ->
+  | Ir2.IdName _ ->
       let v = eval_expr e scopes in
       helper id := v;
       do_flow k
-  | Ir.IdAt (id', i) ->
+  | Ir2.IdAt (id', i) ->
       (let r = helper id' in
        let i' = eval_expr i scopes in
        let v = eval_expr e scopes in
@@ -112,26 +111,30 @@ and eval_expr expr scopes =
   let vs = Stack.create () in
   let rec helper expr =
     match expr with
-    | Ir.Num n -> Stack.push (Values.Int n) vs
-    | Ir.Char c -> Stack.push (Values.Char c) vs
-    | Ir.Str s -> Stack.push (Values.Str s) vs
-    | Ir.Name name -> (
+    | Ir2.Int n -> Stack.push (Values.Int n) vs
+    | Ir2.Float n -> Stack.push (Values.Float n) vs
+    | Ir2.Char c -> Stack.push (Values.Char c) vs
+    | Ir2.Str s -> Stack.push (Values.Str s) vs
+    | Ir2.Name name -> (
         match Closure.search scopes name with
-        | None -> assert false
+        | None ->
+            print_endline name;
+            assert false
         | Some value -> Stack.push (Values.value_to_v value) vs)
-    | Ir.Bool b -> Stack.push (Values.Bool b) vs
-    | Ir.Void -> Stack.push Values.Void vs
-    | Ir.Neg -> (
+    | Ir2.Bool b -> Stack.push (Values.Bool b) vs
+    | Ir2.Void -> Stack.push Values.Void vs
+    | Ir2.Neg -> (
         let v = Stack.pop vs in
         match v with
         | Values.Int n -> Stack.push (Values.Int (-n)) vs
+        | Values.Float n -> Stack.push (Values.Float (Float.neg n)) vs
         | _ -> assert false)
-    | Ir.Not -> (
+    | Ir2.Not -> (
         let v = Stack.pop vs in
         match v with
         | Values.Bool b -> Stack.push (Values.Bool (not b)) vs
         | _ -> assert false)
-    | Ir.Eq -> (
+    | Ir2.Eq -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
@@ -139,77 +142,89 @@ and eval_expr expr scopes =
             Stack.push (Values.Bool (v1 = v2)) vs
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Bool (v1 = v2)) vs
         | _ -> assert false)
-    | Ir.Gt -> (
+    | Ir2.Gt -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Bool (v1 > v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Bool (v1 > v2)) vs
         | _ -> assert false)
-    | Ir.Lt -> (
+    | Ir2.Lt -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Bool (v1 < v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Bool (v1 < v2)) vs
         | _ -> assert false)
-    | Ir.Add -> (
+    | Ir2.Add -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Int (v1 + v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Float (Float.add v1 v2)) vs
         | _ -> assert false)
-    | Ir.Sub -> (
+    | Ir2.Sub -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Int (v1 - v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Float (Float.sub v1 v2)) vs
         | _ -> assert false)
-    | Ir.Mul -> (
+    | Ir2.Mul -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Int (v1 * v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Float (Float.mul v1 v2)) vs
         | _ -> assert false)
-    | Ir.Div -> (
+    | Ir2.Div -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int _, Values.Int 0 -> raise Div
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Int (v1 / v2)) vs
+        | Values.Float v1, Values.Float v2 ->
+            Stack.push (Values.Float (Float.div v1 v2)) vs
         | _ -> assert false)
-    | Ir.Mod -> (
+    | Ir2.Mod -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Int _, Values.Int 0 -> raise Div
         | Values.Int v1, Values.Int v2 -> Stack.push (Values.Int (v1 mod v2)) vs
         | _ -> assert false)
-    | Ir.And -> (
+    | Ir2.And -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Bool v1, Values.Bool v2 ->
             Stack.push (Values.Bool (v1 && v2)) vs
         | _ -> assert false)
-    | Ir.Or -> (
+    | Ir2.Or -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Bool v1, Values.Bool v2 ->
             Stack.push (Values.Bool (v1 || v2)) vs
         | _ -> assert false)
-    | Ir.Xor -> (
+    | Ir2.Xor -> (
         let v2 = Stack.pop vs in
         let v1 = Stack.pop vs in
         match (v1, v2) with
         | Values.Bool v1, Values.Bool v2 ->
             Stack.push (Values.Bool (v1 <> v2)) vs
         | _ -> assert false)
-    | Ir.List len ->
+    | Ir2.List len ->
         let a = List.init len (fun _ -> Stack.pop vs) in
         let b = List.rev a in
         let c = Array.of_list b in
         Stack.push (Values.List c) vs
-    | Ir.ListAt -> (
+    | Ir2.ListAt -> (
         let i = Stack.pop vs in
         let l = Stack.pop vs in
         match (l, i) with
@@ -217,7 +232,7 @@ and eval_expr expr scopes =
             if 0 <= i && i < Array.length l then Stack.push l.(i) vs
             else raise Range
         | _ -> assert false)
-    | Ir.StrAt -> (
+    | Ir2.StrAt -> (
         let i = Stack.pop vs in
         let s = Stack.pop vs in
         match (s, i) with
@@ -226,7 +241,7 @@ and eval_expr expr scopes =
               Stack.push (Values.Char s.[i]) vs
             else raise Range
         | _ -> assert false)
-    | Ir.FnVal (ps, c, body) ->
+    | Ir2.FnVal (ps, c, body) ->
         let c' = Closure.empty () in
         Closure.iter
           (fun name _ ->
@@ -237,7 +252,7 @@ and eval_expr expr scopes =
             | Some value -> Closure.set c' name value)
           c;
         Stack.push (Values.Fn (ps, c', body)) vs
-    | Ir.FnCall len -> (
+    | Ir2.FnCall len -> (
         let args = List.init len (fun _ -> Stack.pop vs) in
         let args' = List.rev args in
         let fn' = Stack.pop vs in
@@ -268,5 +283,5 @@ let run ds =
     (fun name ({ def } : Builtins.builtinFn) ->
       Closure.set scope name (Values.Const (Values.Builtin def)))
     Builtins.builtins;
-  exec ds [ scope ]
+  exec ds 0 [ scope ]
     { break = Fail; continue = Fail; next = Do (fun () -> ()); return = Fail }

@@ -10,7 +10,8 @@ let rec print_src src =
 
 let t2s t =
   match t with
-  | Token.Num n -> Printf.sprintf "Num %d\t" n
+  | Token.Int n -> Printf.sprintf "Int %d\t" n
+  | Token.Float n -> Printf.sprintf "Float %f\t" n
   | Token.Char c -> Printf.sprintf "Char %c\t" c
   | Token.Str s -> Printf.sprintf "Str %s\t" s
   | Token.Name n -> Printf.sprintf "Name %s\t" n
@@ -106,7 +107,8 @@ and print_expr expr lvl : unit =
   print_range expr.span;
   print_string (String.make (2 * lvl) ' ');
   match expr.v with
-  | Ast.Num n -> Printf.printf "%d\n" n
+  | Ast.Int n -> Printf.printf "%d\n" n
+  | Ast.Float n -> Printf.printf "%f\n" n
   | Ast.Char c -> Printf.printf "%c\n" c
   | Ast.Str s -> Printf.printf "%s\n" s
   | Ast.Name n -> Printf.printf "name %s\n" n
@@ -213,36 +215,36 @@ and print_id id lvl =
       print_id id' (lvl + 1);
       print_expr expr (lvl + 1)
 
-let rec print_ir p lvl = Queue.iter (fun d -> print_dec d lvl) p
+let rec print_ir p lvl = Array.iter (fun d -> print_dec d lvl) p
 
-and print_dec (dec : Ir.dec) lvl =
+and print_dec (dec : Ir2.dec) lvl =
   print_string (String.make (2 * lvl) ' ');
   match dec with
-  | Ir.Let (n, e) ->
+  | Ir2.Let (n, e) ->
       Printf.printf "let : name = %s\n" n;
       print_expr e (lvl + 1)
-  | Ir.Var (n, e) ->
+  | Ir2.Var (n, e) ->
       Printf.printf "var : name = %s\n" n;
       print_expr e (lvl + 1)
-  | Ir.VarSet (v, e) ->
+  | Ir2.VarSet (v, e) ->
       Printf.printf "var_set\n";
       print_id v (lvl + 1);
       print_expr e (lvl + 1)
-  | Ir.If (e, ds, ds2) -> (
+  | Ir2.If (e, ds, ds2) -> (
       Printf.printf "if then else\n";
       print_expr e (lvl + 1);
       print_dec ds (lvl + 1);
       match ds2 with Some ds2 -> print_dec ds2 (lvl + 1) | None -> ())
-  | Ir.While (e, ds) ->
+  | Ir2.While (e, ds) ->
       Printf.printf "while\n";
       print_expr e (lvl + 1);
       print_dec ds (lvl + 1)
-  | Ir.Break -> Printf.printf "break\n"
-  | Ir.Continue -> Printf.printf "continue\n"
-  | Ir.Return e ->
+  | Ir2.Break -> Printf.printf "break\n"
+  | Ir2.Continue -> Printf.printf "continue\n"
+  | Ir2.Return e ->
       Printf.printf "return\n";
       print_expr e (lvl + 1)
-  | Ir.Block ds ->
+  | Ir2.Block ds ->
       Printf.printf "block\n";
       print_ir ds (lvl + 1)
 
@@ -251,34 +253,35 @@ and print_expr expr lvl : unit = Array.iter (fun e -> print_e e lvl) expr
 and print_e expr lvl : unit =
   print_string (String.make (2 * lvl) ' ');
   match expr with
-  | Ir.Num n -> Printf.printf "%d\n" n
-  | Ir.Char c -> Printf.printf "%c\n" c
-  | Ir.Str s -> Printf.printf "%s\n" s
-  | Ir.Name n -> Printf.printf "name %s\n" n
-  | Ir.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
-  | Ir.Void -> Printf.printf "void\n"
-  | Ir.Neg -> Printf.printf "neg\n"
-  | Ir.Not -> Printf.printf "not\n"
-  | Ir.Eq -> Printf.printf "eq\n"
-  | Ir.Gt -> Printf.printf "gt\n"
-  | Ir.Lt -> Printf.printf "lt\n"
-  | Ir.Add -> Printf.printf "add\n"
-  | Ir.Sub -> Printf.printf "sub\n"
-  | Ir.Mul -> Printf.printf "mul\n"
-  | Ir.Div -> Printf.printf "div\n"
-  | Ir.Mod -> Printf.printf "mod\n"
-  | Ir.And -> Printf.printf "and\n"
-  | Ir.Or -> Printf.printf "or\n"
-  | Ir.Xor -> Printf.printf "xor\n"
-  | Ir.List len -> Printf.printf "list %d\n" len
-  | Ir.ListAt -> Printf.printf "list at\n"
-  | Ir.StrAt -> Printf.printf "str at\n"
-  | Ir.FnVal (ps, t, body) ->
+  | Ir2.Int n -> Printf.printf "%d\n" n
+  | Ir2.Float n -> Printf.printf "%f\n" n
+  | Ir2.Char c -> Printf.printf "%c\n" c
+  | Ir2.Str s -> Printf.printf "%s\n" s
+  | Ir2.Name n -> Printf.printf "name %s\n" n
+  | Ir2.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
+  | Ir2.Void -> Printf.printf "void\n"
+  | Ir2.Neg -> Printf.printf "neg\n"
+  | Ir2.Not -> Printf.printf "not\n"
+  | Ir2.Eq -> Printf.printf "eq\n"
+  | Ir2.Gt -> Printf.printf "gt\n"
+  | Ir2.Lt -> Printf.printf "lt\n"
+  | Ir2.Add -> Printf.printf "add\n"
+  | Ir2.Sub -> Printf.printf "sub\n"
+  | Ir2.Mul -> Printf.printf "mul\n"
+  | Ir2.Div -> Printf.printf "div\n"
+  | Ir2.Mod -> Printf.printf "mod\n"
+  | Ir2.And -> Printf.printf "and\n"
+  | Ir2.Or -> Printf.printf "or\n"
+  | Ir2.Xor -> Printf.printf "xor\n"
+  | Ir2.List len -> Printf.printf "list %d\n" len
+  | Ir2.ListAt -> Printf.printf "list at\n"
+  | Ir2.StrAt -> Printf.printf "str at\n"
+  | Ir2.FnVal (ps, t, body) ->
       Printf.printf "fnval\n";
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
       Closure.iter (fun name _ -> print_closure name (lvl + 1)) t;
       print_dec body (lvl + 1)
-  | Ir.FnCall len -> Printf.printf "fncall %d\n" len
+  | Ir2.FnCall len -> Printf.printf "fncall %d\n" len
 
 and print_param (param : string) lvl =
   print_string (String.make (2 * lvl) ' ');
@@ -293,8 +296,8 @@ and print_closure (param : string) lvl =
 and print_id id lvl =
   print_string (String.make (2 * lvl) ' ');
   match id with
-  | Ir.IdName name -> Printf.printf "%s\n" name
-  | Ir.IdAt (id', expr) ->
+  | Ir2.IdName name -> Printf.printf "%s\n" name
+  | Ir2.IdAt (id', expr) ->
       Printf.printf "at\n";
       print_id id' (lvl + 1);
       print_expr expr (lvl + 1)
@@ -302,8 +305,8 @@ and print_id id lvl =
 let rec print_type t lvl =
   print_string (String.make (2 * lvl) ' ');
   match t with
-  | Types.Untyped -> print_endline "untyped"
   | Types.Int -> print_endline "int"
+  | Types.Float -> print_endline "float"
   | Types.Bool -> print_endline "bool"
   | Types.Char -> print_endline "char"
   | Types.Str -> print_endline "string"

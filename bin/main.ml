@@ -56,12 +56,13 @@ let rec parse_and_import file (files : hashset) : Ast.dec Queue.t =
 let analyze ast =
   try
     let x = Analyzer.analyze ast in
+    Debug.print_ir x 0;
     x
   with
-  | Analyzer.NameError { v; span = sn, (a, b), (c, d) } ->
+  | Typechecker.NameError { v; span = sn, (a, b), (c, d) } ->
       Printf.printf "error: %s %d:%d-%d:%d - name %s\n" sn a b c d v;
       exit 0
-  | Analyzer.TypeError { v; span = sn, (a, b), (c, d) } ->
+  | Typechecker.TypeError { v; span = sn, (a, b), (c, d) } ->
       Printf.printf "error: %s %d:%d-%d:%d - type %s\n" sn a b c d v;
       exit 0
 
@@ -69,15 +70,27 @@ let print_usage () =
   print_endline "usage: mini <mode> <file>";
   print_endline "\tmode : i = interpreter, c = compiler, r = runtime"
 
+let time (start, stop, print) name f =
+  start name;
+  let res = f () in
+  stop ();
+  res
+
 let () =
   if Array.length Sys.argv <> 3 then print_usage ()
   else
     let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
     match Sys.argv.(1) with
     | "i" ->
-        let ast = parse_and_import absolute_path (H.create 0) in
-        ast |> analyze |> Eval.run
+        let ((_, _, print) as bench) = Bench.create "Mini Interpreter" in
+        let ast =
+          time bench "parse" (fun () ->
+              parse_and_import absolute_path (H.create 0))
+        in
+        let ir = time bench "analyze" (fun () -> analyze ast) in
+        time bench "eval" (fun () -> Eval.run ir);
+        print ()
     | "c" ->
         let ast = parse_and_import absolute_path (H.create 0) in
-        ast |> analyze |> Transpiler.emit
+        ast |> analyze |> Generator.emit
     | _ -> print_usage ()

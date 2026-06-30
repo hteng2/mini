@@ -1,6 +1,7 @@
 type token =
   (* values *)
-  | Num of int
+  | Int of int
+  | Float of float
   | Str of string
   | Char of char
   | Name of string

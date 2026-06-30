@@ -1,27 +1,27 @@
-type size = int
-type data = Int of int | Bool of bool | Char of char
-
 type code =
   (* stack/heap manipulation *)
   | Push of int
-  | Pop
-  | Fetch
+  | Alloc
   | Store
-  | Copy of size
+  | Fetch
   (* control flow *)
-  | Goto (* absolute *)
+  | Goto
   | Call of int
-  | Jump of size (* relative *)
-  | Ifn (* skip next if true *)
+  | Jump of int
+  | Ifn
   (* arithmetic *)
+  | Neg
   | Add
   | Sub
   | Mul
   | Div
   | Mod
   (* logic *)
+  | Not
   | And
   | Or
   | Xor
   (* comparison *)
-  | Cmp
+  | Eq
+  | Gt
+  | Lt
