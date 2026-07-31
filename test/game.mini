@@ -1,0 +1,62 @@
+let randint = fn (max int) int {
+	ftoi (rand() * itof(max))
+};
+
+let genprice = fn (center int, range int, _ void) int {
+	randint(range) - range/2 + center
+};
+
+let rounds = 5;
+let length = 5;
+let ranges = [
+	500, 	300, 	200,	150,	120,
+	100, 	80, 	60, 	50, 	30
+];
+
+let trueprice = randint(500) + 500;
+
+var cash = 0;
+var eqs = 0;
+
+var round = 0;
+while round < rounds {
+	print("initial min: ");
+	let min = atoi(readline());
+	
+	print("initial max: ");
+	let max = atoi(readline());
+
+	var t = 0;
+	while t < length {
+		let price = genprice(trueprice, ranges[round], ());
+		print(itoa(price));
+
+		if price > max {
+			print(" SELL");
+			cash = cash + price;
+			eqs = eqs - 1;
+		} else {};
+
+		if price < min {
+			print(" BUY");
+			cash = cash - price;
+			eqs = eqs + 1;
+		} else {};
+
+		println("");
+
+		t = t + 1;
+	};
+
+	print("cash: ");
+	println(itoa(cash));
+	print("eqs: ");
+	println(itoa(eqs));
+
+	round = round + 1;
+};
+
+print("true price: ");
+println(itoa(trueprice));
+print("profit: ");
+println(itoa(cash + eqs * trueprice));

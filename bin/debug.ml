@@ -24,9 +24,14 @@ let t2s t =
   | Token.Lbrace -> "Lbrace\t"
   | Token.Rbrace -> "Rbrace\t"
   | Token.Comma -> "Comma\t"
+  | Token.Semicolon -> "Semicolon\t"
+  | Token.Set -> "Set\t"
   | Token.Eq -> "Eq\t"
+  | Token.Neq -> "Neq\t"
   | Token.Gt -> "Gt\t"
+  | Token.Ge -> "Ge\t"
   | Token.Lt -> "Lt\t"
+  | Token.Le -> "Le\t"
   | Token.Add -> "Add\t"
   | Token.Sub -> "Sub\t"
   | Token.Mul -> "Mul\t"
@@ -46,7 +51,6 @@ let t2s t =
   | Token.Break -> "Break\t"
   | Token.Continue -> "Continue\t"
   | Token.Fn -> "Fn\t"
-  | Token.Return -> "Return\t"
   | Token.Import -> "Import\t"
 
 let rec print_tokens ts =
@@ -64,46 +68,9 @@ let print_range ((sn, (a, b), (c, d)) : Loc.range) =
   Printf.printf "%s%s| " s s2;
   ()
 
-let rec print_p p lvl =
-  match Queue.take_opt p with
-  | Some d ->
-      print_dec d lvl;
-      print_p p lvl
-  | None -> ()
+let rec print_ast p lvl = Queue.iter (fun expr -> print_expr expr lvl) p
 
-and print_dec (dec : Ast.dec) lvl =
-  print_range dec.span;
-  print_string (String.make (2 * lvl) ' ');
-  match dec.v with
-  | Ast.Let (n, e) ->
-      Printf.printf "let : name = %s\n" n;
-      print_expr e (lvl + 1)
-  | Ast.Var (n, e) ->
-      Printf.printf "var : name = %s\n" n;
-      print_expr e (lvl + 1)
-  | Ast.VarSet (v, e) ->
-      Printf.printf "var_set\n";
-      print_id v (lvl + 1);
-      print_expr e (lvl + 1)
-  | Ast.If (e, ds, ds2) -> (
-      Printf.printf "if then else\n";
-      print_expr e (lvl + 1);
-      print_dec ds (lvl + 1);
-      match ds2 with Some ds2 -> print_dec ds2 (lvl + 1) | None -> ())
-  | Ast.While (e, ds) ->
-      Printf.printf "while\n";
-      print_expr e (lvl + 1);
-      print_dec ds (lvl + 1)
-  | Ast.Break -> Printf.printf "break\n"
-  | Ast.Continue -> Printf.printf "continue\n"
-  | Ast.Return e ->
-      Printf.printf "return\n";
-      print_expr e (lvl + 1)
-  | Ast.Block ds ->
-      Printf.printf "block\n";
-      print_p ds (lvl + 1)
-
-and print_expr expr lvl : unit =
+and print_expr (expr : Ast.expr) lvl : unit =
   print_range expr.span;
   print_string (String.make (2 * lvl) ' ');
   match expr.v with
@@ -128,12 +95,24 @@ and print_expr expr lvl : unit =
       Printf.printf "eq\n";
       print_expr e1 (lvl + 1);
       print_expr e2 (lvl + 1)
+  | Ast.Neq (e1, e2) ->
+      Printf.printf "eq\n";
+      print_expr e1 (lvl + 1);
+      print_expr e2 (lvl + 1)
   | Ast.Gt (e1, e2) ->
       Printf.printf "gt\n";
       print_expr e1 (lvl + 1);
       print_expr e2 (lvl + 1)
+  | Ast.Ge (e1, e2) ->
+      Printf.printf "ge\n";
+      print_expr e1 (lvl + 1);
+      print_expr e2 (lvl + 1)
   | Ast.Lt (e1, e2) ->
       Printf.printf "lt\n";
+      print_expr e1 (lvl + 1);
+      print_expr e2 (lvl + 1)
+  | Ast.Le (e1, e2) ->
+      Printf.printf "le\n";
       print_expr e1 (lvl + 1);
       print_expr e2 (lvl + 1)
   | Ast.Add (e1, e2) ->
@@ -179,11 +158,35 @@ and print_expr expr lvl : unit =
       Printf.printf "fnval\n";
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
       print_type t (lvl + 1);
-      print_dec body (lvl + 1)
+      print_expr body (lvl + 1)
   | Ast.FnCall (e, es) ->
       Printf.printf "fncall\n";
       print_expr e (lvl + 1);
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
+  | Ast.Let (n, e) ->
+      Printf.printf "let : name = %s\n" n;
+      print_expr e (lvl + 1)
+  | Ast.Var (n, e) ->
+      Printf.printf "var : name = %s\n" n;
+      print_expr e (lvl + 1)
+  | Ast.Set (v, e) ->
+      Printf.printf "set\n";
+      print_expr v (lvl + 1);
+      print_expr e (lvl + 1)
+  | Ast.If (e, ds, ds2) ->
+      Printf.printf "if then else\n";
+      print_expr e (lvl + 1);
+      print_expr ds (lvl + 1);
+      print_expr ds2 (lvl + 1)
+  | Ast.While (e, ds) ->
+      Printf.printf "while\n";
+      print_expr e (lvl + 1);
+      print_expr ds (lvl + 1)
+  | Ast.Break -> Printf.printf "break\n"
+  | Ast.Continue -> Printf.printf "continue\n"
+  | Ast.Block ds ->
+      Printf.printf "block\n";
+      print_ast ds (lvl + 1)
 
 and print_param (param : Ast.param) lvl =
   print_range param.span;
@@ -205,52 +208,10 @@ and print_type t lvl =
       print_type t' (lvl + 1);
       List.iter (fun t -> print_type t (lvl + 1)) ts
 
-and print_id id lvl =
-  print_range id.span;
-  print_string (String.make (2 * lvl) ' ');
-  match id.v with
-  | Ast.IdName name -> Printf.printf "%s\n" name
-  | Ast.IdAt (id', expr) ->
-      Printf.printf "at\n";
-      print_id id' (lvl + 1);
-      print_expr expr (lvl + 1)
+let rec print_ir p lvl = Array.iteri (fun i d -> print_e i d lvl) p
 
-let rec print_ir p lvl = Array.iter (fun d -> print_dec d lvl) p
-
-and print_dec (dec : Ir2.dec) lvl =
-  print_string (String.make (2 * lvl) ' ');
-  match dec with
-  | Ir2.Let (n, e) ->
-      Printf.printf "let : name = %s\n" n;
-      print_expr e (lvl + 1)
-  | Ir2.Var (n, e) ->
-      Printf.printf "var : name = %s\n" n;
-      print_expr e (lvl + 1)
-  | Ir2.VarSet (v, e) ->
-      Printf.printf "var_set\n";
-      print_id v (lvl + 1);
-      print_expr e (lvl + 1)
-  | Ir2.If (e, ds, ds2) -> (
-      Printf.printf "if then else\n";
-      print_expr e (lvl + 1);
-      print_dec ds (lvl + 1);
-      match ds2 with Some ds2 -> print_dec ds2 (lvl + 1) | None -> ())
-  | Ir2.While (e, ds) ->
-      Printf.printf "while\n";
-      print_expr e (lvl + 1);
-      print_dec ds (lvl + 1)
-  | Ir2.Break -> Printf.printf "break\n"
-  | Ir2.Continue -> Printf.printf "continue\n"
-  | Ir2.Return e ->
-      Printf.printf "return\n";
-      print_expr e (lvl + 1)
-  | Ir2.Block ds ->
-      Printf.printf "block\n";
-      print_ir ds (lvl + 1)
-
-and print_expr expr lvl : unit = Array.iter (fun e -> print_e e lvl) expr
-
-and print_e expr lvl : unit =
+and print_e i expr lvl : unit =
+  Printf.printf "%-5d" i;
   print_string (String.make (2 * lvl) ' ');
   match expr with
   | Ir2.Int n -> Printf.printf "%d\n" n
@@ -263,8 +224,11 @@ and print_e expr lvl : unit =
   | Ir2.Neg -> Printf.printf "neg\n"
   | Ir2.Not -> Printf.printf "not\n"
   | Ir2.Eq -> Printf.printf "eq\n"
+  | Ir2.Neq -> Printf.printf "neq\n"
   | Ir2.Gt -> Printf.printf "gt\n"
+  | Ir2.Ge -> Printf.printf "ge\n"
   | Ir2.Lt -> Printf.printf "lt\n"
+  | Ir2.Le -> Printf.printf "le\n"
   | Ir2.Add -> Printf.printf "add\n"
   | Ir2.Sub -> Printf.printf "sub\n"
   | Ir2.Mul -> Printf.printf "mul\n"
@@ -276,12 +240,20 @@ and print_e expr lvl : unit =
   | Ir2.List len -> Printf.printf "list %d\n" len
   | Ir2.ListAt -> Printf.printf "list at\n"
   | Ir2.StrAt -> Printf.printf "str at\n"
-  | Ir2.FnVal (ps, t, body) ->
-      Printf.printf "fnval\n";
+  | Ir2.FnVal (ps, t, len) ->
+      Printf.printf "fnval %d\n" len;
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
-      Closure.iter (fun name _ -> print_closure name (lvl + 1)) t;
-      print_dec body (lvl + 1)
+      Closure.iter (fun name _ -> print_closure name (lvl + 1)) t
   | Ir2.FnCall len -> Printf.printf "fncall %d\n" len
+  | Ir2.Store (v, n) -> Printf.printf "store %s %d\n" v n
+  | Ir2.Let v -> Printf.printf "let %s\n" v
+  | Ir2.If -> Printf.printf "if\n"
+  | Ir2.Jmp n -> Printf.printf "jmp %d\n" n
+  | Ir2.JmpBck -> Printf.printf "jmpbck\n"
+  | Ir2.Label l -> (
+      match l with
+      | Ir2.BREAK -> Printf.printf "lbl BREAK\n"
+      | Ir2.CONT -> Printf.printf "lbl CONT\n")
 
 and print_param (param : string) lvl =
   print_string (String.make (2 * lvl) ' ');
@@ -292,15 +264,6 @@ and print_closure (param : string) lvl =
   print_string (String.make (2 * lvl) ' ');
   let name = param in
   Printf.printf "closure %s\n" name
-
-and print_id id lvl =
-  print_string (String.make (2 * lvl) ' ');
-  match id with
-  | Ir2.IdName name -> Printf.printf "%s\n" name
-  | Ir2.IdAt (id', expr) ->
-      Printf.printf "at\n";
-      print_id id' (lvl + 1);
-      print_expr expr (lvl + 1)
 
 let rec print_type t lvl =
   print_string (String.make (2 * lvl) ' ');

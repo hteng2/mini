@@ -22,7 +22,7 @@ let to_real_path path =
       Printf.printf "Error '%s' for '%s'\n" (Unix.error_message err) path;
       exit 0
 
-let rec parse_and_import file (files : hashset) : Ast.dec Queue.t =
+let rec parse_and_import file (files : hashset) : Ast.expr Queue.t =
   let file' = to_real_path file in
   if H.mem files file' then raise (Failure "circular import detected")
   else
@@ -38,7 +38,7 @@ let rec parse_and_import file (files : hashset) : Ast.dec Queue.t =
         List.map (fun import -> Filename.concat dirname import) imports
       in
 
-      let ast = Parser.parse ts' in
+      let ast = Parser.parse ts' file' in
       List.fold_left
         (fun ast import ->
           let ast2 = parse_and_import import files in
@@ -56,7 +56,6 @@ let rec parse_and_import file (files : hashset) : Ast.dec Queue.t =
 let analyze ast =
   try
     let x = Analyzer.analyze ast in
-    Debug.print_ir x 0;
     x
   with
   | Typechecker.NameError { v; span = sn, (a, b), (c, d) } ->
@@ -88,9 +87,6 @@ let () =
               parse_and_import absolute_path (H.create 0))
         in
         let ir = time bench "analyze" (fun () -> analyze ast) in
-        time bench "eval" (fun () -> Eval.run ir);
+        let _ = time bench "eval" (fun () -> Eval.run ir) in
         print ()
-    | "c" ->
-        let ast = parse_and_import absolute_path (H.create 0) in
-        ast |> analyze |> Generator.emit
     | _ -> print_usage ()

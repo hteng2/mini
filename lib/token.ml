@@ -15,10 +15,15 @@ type token =
   | Lbrace
   | Rbrace
   | Comma
+  | Semicolon
+  | Set
   (* ordered comparison *)
   | Eq
+  | Neq
   | Gt
+  | Ge
   | Lt
+  | Le
   (* arithmetic *)
   | Add
   | Sub
@@ -41,7 +46,6 @@ type token =
   | Break
   | Continue
   | Fn
-  | Return
   (**)
   | Import
 

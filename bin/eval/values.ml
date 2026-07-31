@@ -8,7 +8,7 @@ type v =
   | Str of string
   | Void
   | List of v array
-  | Fn of string list * value Closure.t * Ir2.dec
+  | Fn of string list * value Closure.t * int
   | Builtin of (v list -> v)
 
 and value = Var of v ref | Const of v

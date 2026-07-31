@@ -35,26 +35,23 @@ type e =
   | Eq of expr * expr
   | Gt of expr * expr
   | Lt of expr * expr
+  | Neq of expr * expr
+  | Ge of expr * expr
+  | Le of expr * expr
   (* lists *)
   | List of expr list
   | At of expr * expr
   (* function *)
-  | FnVal of param list * mini_type * dec
+  | FnVal of param list * mini_type * expr
   | FnCall of expr * expr list
-
-and expr = e Loc.spanned
-and id = IdName of string | IdAt of identifier * expr
-and identifier = id Loc.spanned
-
-and d =
+  (* decs *)
   | Let of string * expr
   | Var of string * expr
-  | VarSet of identifier * expr
-  | If of expr * dec * dec option
-  | While of expr * dec
+  | Set of expr * expr
+  | If of expr * expr * expr
+  | While of expr * expr
   | Break
   | Continue
-  | Block of dec Queue.t
-  | Return of expr
+  | Block of expr Queue.t
 
-and dec = d Loc.spanned
+and expr = e Loc.spanned

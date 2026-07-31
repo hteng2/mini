@@ -1,4 +1,5 @@
 type closure = unit Closure.t
+type label = BREAK | CONT
 
 type e =
   (* atoms *)
@@ -23,28 +24,25 @@ type e =
   | Xor
   (* comp *)
   | Eq
+  | Neq
   | Gt
+  | Ge
   | Lt
+  | Le
   (* lists *)
   | List of int
   | ListAt
   | StrAt
   (* function *)
-  (* params, closure captures, body *)
-  | FnVal of string list * closure * dec
+  (* params, closure captures, body size *)
+  | FnVal of string list * closure * int
   | FnCall of int
-
-and expr = e Array.t
-and identifier = IdName of string | IdAt of identifier * expr
-
-and dec =
-  | Let of string * expr
-  | Var of string * expr
-  | VarSet of identifier * expr
-  | If of expr * dec * dec option
-  | While of expr * dec
-  | Break
-  | Continue
-  (* closure captures, body *)
-  | Block of dec Array.t
-  | Return of expr
+  (* decs *)
+  | Store of string * int
+  | Let of string
+  (* skip if true *)
+  | If
+  | Jmp of int
+  | JmpBck
+  (* label *)
+  | Label of label

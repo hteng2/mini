@@ -4,28 +4,31 @@
 open Mini
 
 (* Semantic analysis is ctx-sensitive *)
-type ctx = { loop : bool; func : bool }
+type ctx = { loop : bool }
 
 exception CtrlError of Errors.error
 
 (* check existence and infer type *)
-let rec check_id id =
+let rec check_id id ctx =
   match id with
   | Ir1.IdName name -> ()
   | Ir1.IdAt (id', expr) ->
-      check_id id';
-      check_expr expr
+      check_id id' ctx;
+      check_expr expr ctx
 
 (* apply type induction rules and convert to ops *)
-and check_expr ((expr, t) : Ir1.expr) : unit =
+and check_expr ({ v = expr, t; span } : Ir1.expr) ctx : unit =
   match expr with
   | Ir1.Int _ | Ir1.Float _ | Ir1.Char _ | Ir1.Str _ | Ir1.Name _ | Ir1.Bool _
   | Ir1.Void ->
       ()
-  | Ir1.Neg e | Ir1.Not e -> check_expr e
+  | Ir1.Neg e | Ir1.Not e -> check_expr e ctx
   | Ir1.Eq (e1, e2)
+  | Ir1.Neq (e1, e2)
   | Ir1.Gt (e1, e2)
+  | Ir1.Ge (e1, e2)
   | Ir1.Lt (e1, e2)
+  | Ir1.Le (e1, e2)
   | Ir1.Add (e1, e2)
   | Ir1.Sub (e1, e2)
   | Ir1.Mul (e1, e2)
@@ -36,69 +39,33 @@ and check_expr ((expr, t) : Ir1.expr) : unit =
   | Ir1.Xor (e1, e2)
   | Ir1.ListAt (e1, e2)
   | Ir1.StrAt (e1, e2) ->
-      check_expr e1;
-      check_expr e2
-  | Ir1.List es -> List.iter (fun e -> check_expr e) es
-  | Ir1.FnVal (ps, c, body) -> (
-      match t with
-      | Types.Fn (t', _) ->
-          if
-            t' <> Types.Void
-            && not (check_dec body { loop = false; func = true })
-          then
-            raise
-              (CtrlError
-                 {
-                   v = "cannot prove that non-void function will return";
-                   span = body.span;
-                 })
-      | _ -> assert false)
+      check_expr e1 ctx;
+      check_expr e2 ctx
+  | Ir1.List es -> List.iter (fun e -> check_expr e ctx) es
+  | Ir1.FnVal (ps, c, body) -> check_expr body { loop = false }
   | Ir1.FnCall (fn, args) ->
-      check_expr fn;
-      List.iter (fun e -> check_expr e) args
-
-and check_dec d ctx : bool =
-  match d.v with
-  | Ir1.Let (name, expr) ->
-      check_expr expr;
-      false
-  | Ir1.Var (name, expr) ->
-      check_expr expr;
-      false
-  | Ir1.VarSet (id, expr) ->
-      check_id id;
-      check_expr expr;
-      false
-  | Ir1.If (expr, body, body2) -> (
-      check_expr expr;
-      let r1 = check_dec body ctx in
-      match body2 with
-      | Some body2' ->
-          let r2 = check_dec body2' ctx in
-          r1 && r2
-      | None -> false)
+      check_expr fn ctx;
+      List.iter (fun e -> check_expr e ctx) args
+  | Ir1.Let (name, expr) -> check_expr expr ctx
+  | Ir1.Var (name, expr) -> check_expr expr ctx
+  | Ir1.Set (id, expr) ->
+      check_id id ctx;
+      check_expr expr ctx
+  | Ir1.If (expr, body, body2) ->
+      check_expr expr ctx;
+      check_expr body ctx;
+      check_expr body2 ctx
   | Ir1.While (expr, body) ->
-      check_expr expr;
-      let _ = check_dec body ctx in
-      false
+      check_expr expr ctx;
+      check_expr body { loop = true }
   | Ir1.Break ->
-      if ctx.loop then false
-      else
-        raise (CtrlError { v = "break statement not in loop"; span = d.span })
+      if not ctx.loop then
+        raise (CtrlError { v = "break statement not in loop"; span })
   | Ir1.Continue ->
-      if ctx.loop then false
-      else
-        raise
-          (CtrlError { v = "continue statement not in loop"; span = d.span })
-  | Ir1.Return expr ->
-      if ctx.func then true
-      else
-        raise
-          (CtrlError { v = "return statement not in function"; span = d.span })
-  | Ir1.Block body -> check_decs body ctx
+      if not ctx.loop then
+        raise (CtrlError { v = "continue statement not in loop"; span })
+  | Ir1.Block body -> check_exprs body ctx
 
-and check_decs ds ctx =
-  Array.fold_left (fun r dec -> r || check_dec dec ctx) false ds
+and check_exprs ds ctx = Array.iter (fun e -> check_expr e ctx) ds
 
-let check ds =
-  check_decs ds { loop = false; func = false } |> not |> fun x -> assert x
+let check ds = check_exprs ds { loop = false }

@@ -1,28 +1,5 @@
 open Mini
 
-let c2t c =
-  match c with
-  | '(' -> Some Token.Lparen
-  | ')' -> Some Token.Rparen
-  | '[' -> Some Token.Lbrack
-  | ']' -> Some Token.Rbrack
-  | '{' -> Some Token.Lbrace
-  | '}' -> Some Token.Rbrace
-  | ',' -> Some Token.Comma
-  | '=' -> Some Token.Eq
-  | '>' -> Some Token.Gt
-  | '<' -> Some Token.Lt
-  | '+' -> Some Token.Add
-  | '-' -> Some Token.Sub
-  | '*' -> Some Token.Mul
-  | '/' -> Some Token.Div
-  | '%' -> Some Token.Mod
-  | '&' -> Some Token.And
-  | '|' -> Some Token.Or
-  | '!' -> Some Token.Not
-  | '^' -> Some Token.Xor
-  | _ -> None
-
 let n2t n =
   match n with
   | "let" -> Some Token.Let
@@ -35,7 +12,6 @@ let n2t n =
   | "break" -> Some Token.Break
   | "continue" -> Some Token.Continue
   | "fn" -> Some Token.Fn
-  | "return" -> Some Token.Return
   | "import" -> Some Token.Import
   | _ -> None
 
@@ -60,11 +36,7 @@ and t src sn head =
       else if c = '\'' then t_char src' sn (head, move_head c head)
       else if Char.Ascii.is_digit c then t_int src sn 0 (head, head)
       else if c = '#' then t_comment src sn head
-      else if Char.Ascii.is_print c then t_op src sn (head, head)
-      else
-        raise
-          (Errors.Unexpected
-             { v = "character"; span = (sn, head, move_head c head) })
+      else t_op src sn (head, head)
 
 and t_name src sn s0 (start, head) =
   match src () with
@@ -185,13 +157,40 @@ and t_comment src sn (row, col) =
   | front -> (t (fun () -> front) sn (row, col)) ()
 
 and t_op src sn (start, head) =
+  let lex_2 src (sn, start, head) t0 c1 t1 =
+    match src () with
+    | Stream.Head (c, src') when c = c1 ->
+        Stream.Head
+          ( ({ v = t1; span = (sn, start, move_head c1 head) } : Token.t),
+            t src' sn (move_head c1 head) )
+    | front ->
+        Stream.Head
+          ({ v = t0; span = (sn, start, head) }, t (fun () -> front) sn head)
+  in
   match src () with
   | Stream.End -> assert false
   | Stream.Head (c, src') -> (
-      match c2t c with
-      | None ->
-          raise (Errors.Unexpected { v = "char"; span = (sn, start, head) })
-      | Some token ->
-          Stream.Head
-            ( { v = token; span = (sn, start, move_head c head) },
-              t src' sn (move_head c head) ))
+      let head = move_head c head in
+      let span = (sn, start, head) in
+      match c with
+      | '(' -> Stream.Head ({ v = Token.Lparen; span }, t src' sn head)
+      | ')' -> Stream.Head ({ v = Token.Rparen; span }, t src' sn head)
+      | '[' -> Stream.Head ({ v = Token.Lbrack; span }, t src' sn head)
+      | ']' -> Stream.Head ({ v = Token.Rbrack; span }, t src' sn head)
+      | '{' -> Stream.Head ({ v = Token.Lbrace; span }, t src' sn head)
+      | '}' -> Stream.Head ({ v = Token.Rbrace; span }, t src' sn head)
+      | ',' -> Stream.Head ({ v = Token.Comma; span }, t src' sn head)
+      | ';' -> Stream.Head ({ v = Token.Semicolon; span }, t src' sn head)
+      | '=' -> lex_2 src' span Token.Set '=' Token.Eq
+      | '>' -> lex_2 src' span Token.Gt '=' Token.Ge
+      | '<' -> lex_2 src' span Token.Lt '=' Token.Le
+      | '+' -> Stream.Head ({ v = Token.Add; span }, t src' sn head)
+      | '-' -> Stream.Head ({ v = Token.Sub; span }, t src' sn head)
+      | '*' -> Stream.Head ({ v = Token.Mul; span }, t src' sn head)
+      | '/' -> Stream.Head ({ v = Token.Div; span }, t src' sn head)
+      | '%' -> Stream.Head ({ v = Token.Mod; span }, t src' sn head)
+      | '&' -> Stream.Head ({ v = Token.And; span }, t src' sn head)
+      | '|' -> Stream.Head ({ v = Token.Or; span }, t src' sn head)
+      | '^' -> Stream.Head ({ v = Token.Xor; span }, t src' sn head)
+      | '!' -> lex_2 src' span Token.Not '=' Token.Neq
+      | _ -> raise (Errors.Unexpected { v = "char"; span = (sn, start, head) }))

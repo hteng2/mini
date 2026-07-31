@@ -23,29 +23,28 @@ type e =
   | Xor of expr * expr
   (* comp *)
   | Eq of expr * expr
+  | Neq of expr * expr
   | Gt of expr * expr
+  | Ge of expr * expr
   | Lt of expr * expr
+  | Le of expr * expr
   (* lists *)
   | List of expr list
   | ListAt of expr * expr
   | StrAt of expr * expr
   (* function *)
-  | FnVal of string list * closure * dec
+  | FnVal of string list * closure * expr
   | FnCall of expr * expr list
-
-and expr = e * Types.tt
-and identifier = IdName of string | IdAt of identifier * expr
-
-and d =
+  (* decs *)
   | Let of string * expr
   | Var of string * expr
-  | VarSet of identifier * expr
-  | If of expr * dec * dec option
-  | While of expr * dec
+  | Set of identifier * expr
+  | If of expr * expr * expr
+  | While of expr * expr
   | Break
   | Continue
   (* closure captures, body *)
-  | Block of dec Array.t
-  | Return of expr
+  | Block of expr Array.t
 
-and dec = d Loc.spanned
+and expr = (e * Types.tt) Loc.spanned
+and identifier = IdName of string | IdAt of identifier * expr
