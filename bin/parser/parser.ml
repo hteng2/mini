@@ -4,9 +4,12 @@ let rec scan_imports (ts : Token.t Stream.t) =
   match ts () with
   | Stream.Head ({ v = Token.Import; span = span1 }, ts') -> (
       match ts' () with
-      | Stream.Head ({ v = Token.Str s; span = span2 }, ts'') ->
-          let ts''', is = scan_imports ts'' in
-          (ts''', s :: is)
+      | Stream.Head ({ v = Token.Str s; span = span2 }, ts'') -> (
+          match ts'' () with
+          | Stream.Head ({ v = Token.Semicolon; span = span3 }, ts''') ->
+              let ts''', is = scan_imports ts'' in
+              (ts''', s :: is)
+          | _ -> assert false)
       | _ -> assert false)
   | front -> ((fun () -> front), [])
 
@@ -89,7 +92,7 @@ and parse_types ts =
           let old_ts' = fun () -> front in
           (old_ts', [ t ]))
 
-and bind_type e x =
+let bind_type e x =
   bind_expect
     (fun ts ->
       match parse_type ts with ts', None -> None | ts', Some t -> Some (ts', t))
@@ -125,7 +128,7 @@ let rec parse_params ts =
           let old_ts' = fun () -> front in
           (old_ts', [ param ]))
 
-let prefix_bp = 15
+let prefix_bp = 13
 
 let is_prefix op =
   match op with Token.Sub | Token.Add | Token.Not -> true | _ -> false
@@ -144,21 +147,19 @@ let prefix_combine ({ v = op; span = sn, start_loc, _ } : Token.t)
 
 let bp op =
   match op with
-  | Token.Set -> Some (1, 2)
-  | Token.Or -> Some (3, 4)
-  | Token.Xor -> Some (5, 6)
-  | Token.And -> Some (7, 8)
+  | Token.Or -> Some (1, 2)
+  | Token.Xor -> Some (3, 4)
+  | Token.And -> Some (5, 6)
   | Token.Eq | Token.Gt | Token.Lt | Token.Neq | Token.Ge | Token.Le ->
-      Some (9, 10)
-  | Token.Add | Token.Sub -> Some (11, 12)
-  | Token.Mul | Token.Div | Token.Mod -> Some (13, 14)
+      Some (7, 8)
+  | Token.Add | Token.Sub -> Some (9, 10)
+  | Token.Mul | Token.Div | Token.Mod -> Some (11, 12)
   | _ -> None
 
 let combine ({ v = _; span = sn, start_loc, _ } as l : Ast.expr)
     ({ v = op } : Token.t) ({ v = _; span = sn, _, end_loc } as r : Ast.expr) =
   let v =
     match op with
-    | Token.Set -> Some (Ast.Set (l, r))
     | Token.Or -> Some (Ast.Or (l, r))
     | Token.Xor -> Some (Ast.Xor (l, r))
     | Token.And -> Some (Ast.And (l, r))
@@ -273,41 +274,16 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
           let ts2, name =
             bind_name { v = "name"; span = (sn, start_loc, end_loc) } ts1
           in
-          let ts3, (sn, _, end_loc) =
-            (bind_x Token.Set)
-              { v = "'='"; span = (sn, start_loc, end_loc) }
-              ts2
-          in
-          let ts4, ({ span = sn, _, end_loc; _ } as expr : Ast.expr) =
+          let ts3, ({ span = sn, _, end_loc; _ } as expr : Ast.expr) =
             bind_expr 0
               { v = "expression"; span = (sn, start_loc, end_loc) }
-              ts3
+              ts2
           in
-          let ts5, expr =
-            advance_expr ts4 min_bp
+          let ts4, expr =
+            advance_expr ts3 min_bp
               { v = Ast.Let (name, expr); span = (sn, start_loc, end_loc) }
           in
-          (ts5, Some expr)
-      | Token.Var ->
-          let sn, start_loc, end_loc = span in
-          let ts2, name =
-            bind_name { v = "name"; span = (sn, start_loc, end_loc) } ts1
-          in
-          let ts3, (sn, _, end_loc) =
-            (bind_x Token.Set)
-              { v = "'='"; span = (sn, start_loc, end_loc) }
-              ts2
-          in
-          let ts4, ({ span = sn, _, end_loc; _ } as expr : Ast.expr) =
-            bind_expr 0
-              { v = "expression"; span = (sn, start_loc, end_loc) }
-              ts3
-          in
-          let ts5, expr =
-            advance_expr ts4 min_bp
-              { v = Ast.Var (name, expr); span = (sn, start_loc, end_loc) }
-          in
-          (ts5, Some expr)
+          (ts4, Some expr)
       | Token.If ->
           let sn, start_loc, end_loc = span in
           let ts2, expr =
@@ -334,27 +310,6 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
               }
           in
           (ts6, Some expr)
-      | Token.While ->
-          let sn, start_loc, end_loc = span in
-          let ts2, expr =
-            bind_expr 0
-              { v = "expression"; span = (sn, start_loc, end_loc) }
-              ts1
-          in
-          let ts3, ({ span = sn, _, end_loc } as body : Ast.expr) =
-            bind_expr 0 { v = "body"; span = (sn, start_loc, end_loc) } ts2
-          in
-          let ts4, expr =
-            advance_expr ts3 min_bp
-              { v = Ast.While (expr, body); span = (sn, start_loc, end_loc) }
-          in
-          (ts4, Some expr)
-      | Token.Break ->
-          let ts2, expr = advance_expr ts1 min_bp { v = Ast.Break; span } in
-          (ts2, Some expr)
-      | Token.Continue ->
-          let ts2, expr = advance_expr ts1 min_bp { v = Ast.Continue; span } in
-          (ts2, Some expr)
       | Token.Lbrace ->
           let sn, start_loc, end_loc = span in
           let body = Queue.create () in

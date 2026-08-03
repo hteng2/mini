@@ -16,7 +16,6 @@ type token =
   | Rbrace
   | Comma
   | Semicolon
-  | Set
   (* ordered comparison *)
   | Eq
   | Neq
@@ -37,14 +36,10 @@ type token =
   | Xor
   (* keywords *)
   | Let
-  | Var
   | Print
   | Println
   | If
   | Else
-  | While
-  | Break
-  | Continue
   | Fn
   (**)
   | Import

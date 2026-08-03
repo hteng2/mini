@@ -46,12 +46,7 @@ type e =
   | FnCall of expr * expr list
   (* decs *)
   | Let of string * expr
-  | Var of string * expr
-  | Set of expr * expr
   | If of expr * expr * expr
-  | While of expr * expr
-  | Break
-  | Continue
   | Block of expr Queue.t
 
 and expr = e Loc.spanned

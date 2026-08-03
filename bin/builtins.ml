@@ -4,7 +4,7 @@ module Fns = Hashtbl.Make (String)
 type builtinFn = {
   types : Types.t;
   pure : bool;
-  def : Values.v list -> Values.v;
+  def : Values.value list -> Values.value;
 }
 
 let builtins : builtinFn Fns.t = Fns.create 0
@@ -12,7 +12,7 @@ let builtins : builtinFn Fns.t = Fns.create 0
 let () =
   Fns.add builtins "print"
     {
-      types = (Types.Fn (Types.Void, [ Types.Str ]), Types.Const);
+      types = Types.Fn (Types.Void, [ Types.Str ]);
       pure = false;
       def =
         (fun s ->
@@ -26,7 +26,7 @@ let () =
 
   Fns.add builtins "println"
     {
-      types = (Types.Fn (Types.Void, [ Types.Str ]), Types.Const);
+      types = Types.Fn (Types.Void, [ Types.Str ]);
       pure = false;
       def =
         (fun s ->
@@ -40,14 +40,14 @@ let () =
 
   Fns.add builtins "readline"
     {
-      types = (Types.Fn (Types.Str, []), Types.Const);
+      types = Types.Fn (Types.Str, []);
       pure = false;
       def = (fun _ -> Values.Str (read_line ()));
     };
 
   Fns.add builtins "itoa"
     {
-      types = (Types.Fn (Types.Str, [ Types.Int ]), Types.Const);
+      types = Types.Fn (Types.Str, [ Types.Int ]);
       pure = true;
       def =
         (fun i ->
@@ -58,7 +58,7 @@ let () =
 
   Fns.add builtins "ftoa"
     {
-      types = (Types.Fn (Types.Str, [ Types.Float ]), Types.Const);
+      types = Types.Fn (Types.Str, [ Types.Float ]);
       pure = true;
       def =
         (fun i ->
@@ -69,7 +69,7 @@ let () =
 
   Fns.add builtins "ftoi"
     {
-      types = (Types.Fn (Types.Int, [ Types.Float ]), Types.Const);
+      types = Types.Fn (Types.Int, [ Types.Float ]);
       pure = true;
       def =
         (fun i ->
@@ -80,7 +80,7 @@ let () =
 
   Fns.add builtins "itof"
     {
-      types = (Types.Fn (Types.Float, [ Types.Int ]), Types.Const);
+      types = Types.Fn (Types.Float, [ Types.Int ]);
       pure = true;
       def =
         (fun i ->
@@ -91,7 +91,7 @@ let () =
 
   Fns.add builtins "atoi"
     {
-      types = (Types.Fn (Types.Int, [ Types.Str ]), Types.Const);
+      types = Types.Fn (Types.Int, [ Types.Str ]);
       pure = true;
       def =
         (fun s ->
@@ -105,7 +105,7 @@ let () =
 
   Fns.add builtins "rand"
     {
-      types = (Types.Fn (Types.Float, []), Types.Const);
+      types = Types.Fn (Types.Float, []);
       pure = false;
       def =
         (fun _ ->

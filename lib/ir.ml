@@ -37,14 +37,11 @@ type e =
   | FnCall of expr * expr list
   (* decs *)
   | Let of string * expr
-  | Var of string * expr
-  | Set of identifier * expr
   | If of expr * expr * expr
-  | While of expr * expr
-  | Break
-  | Continue
   (* closure captures, body *)
   | Block of expr Array.t
+  (* etc *)
+  | Do of expr
+  | Noop
 
-and expr = (e * Types.tt) Loc.spanned
-and identifier = IdName of string | IdAt of identifier * expr
+and expr = (e * Types.t) Loc.spanned

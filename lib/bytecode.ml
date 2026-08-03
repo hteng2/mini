@@ -1,5 +1,4 @@
 type closure = unit Closure.t
-type label = BREAK | CONT
 
 type e =
   (* atoms *)
@@ -38,11 +37,10 @@ type e =
   | FnVal of string list * closure * int
   | FnCall of int
   (* decs *)
-  | Store of string * int
   | Let of string
   (* skip if true *)
   | If
   | Jmp of int
   | JmpBck
-  (* label *)
-  | Label of label
+  (**)
+  | Pop

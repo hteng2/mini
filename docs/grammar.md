@@ -12,43 +12,11 @@ I ::= EMPTY | `Import` `Str` I
 
 ## program
 
-P ::= EMPTY | DP
-
-## declarations
-
-D ::= Let | Var | VarSet | Print | If | While | Break | Continue | Block | Return
-
-Let ::= `Let` `Name` `Eq` E
-
-Var ::= `Var` `Name` `Eq` E
-
-VarSet ::=
-
-| Id `Eq` E
-
-Print ::= `Print` E
-
-If ::=
-
-| `If` E D
-
-| `If` E D `Else` D
-
-While ::= `While` E D
-
-Break ::= `Break`
-
-Continue ::= `Continue`
-
-Block ::= `Lbrace` P `Rbrace`
-
-Return ::= `Return` E
+P ::= EMPTY | EP
 
 ## expressions
 
-E ::= Atom | Arith | Logic | Comp | List | Func | Group
-
-Atom ::=
+E ::=
 
 | `Num`
 
@@ -62,9 +30,7 @@ Atom ::=
 
 | `False`
 
-| `Void`
-
-Arith ::=
+| `Lparen` `Rparen`
 
 | `Sub` E
 
@@ -80,8 +46,6 @@ Arith ::=
 
 | E `Mod` E
 
-Logic ::=
-
 | `Not` E
 
 | E `And` E
@@ -90,29 +54,39 @@ Logic ::=
 
 | E `Xor` E
 
-Comp ::=
-
 | E `Eq` E
+
+| E `Neq` E
 
 | E `Gt` E
 
+| E `Ge` E
+
 | E `Lt` E
 
-List ::=
+| E `Le` E
 
 | `Lbrack` Es `Rbrack`
 
 | E `Lbrack` E `Rbrack`
 
-Func ::=
-
-| `Fn` `Lparen` Ps `Rparen` type D
+| `Fn` `Lparen` Ps `Rparen` type E
 
 | E `Lparen` Es `Rparen`
 
-Group ::=
-
 | `Lparen` E `Rparen`
+
+| `Let` `Str` E
+
+| `If` E E `Else` E
+
+| `While` E E
+
+| `Break`
+
+| `Continue`
+
+| `Lbrace` P `Rbrace`
 
 Es ::= EMPTY | E `Comma` Es
 
@@ -124,16 +98,10 @@ T ::=
 
 | `Name`
 
+| `Lparen` T `Rparen`
+
 | T `Lbrack` `Rbrack`
 
 | T `Lparen` Ts `Rparen`
 
 Ts ::= EMPTY | T `Comma` Ts
-
-## identifiers
-
-Id ::=
-
-| `Name`
-
-| Id `Lbrack` E `Rbrack`

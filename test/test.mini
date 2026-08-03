@@ -1,3 +1,1 @@
-let rounds = 5;
-(fn () void {})();
-rounds
+itoa(1+1)

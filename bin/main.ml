@@ -87,6 +87,9 @@ let () =
               parse_and_import absolute_path (H.create 0))
         in
         let ir = time bench "analyze" (fun () -> analyze ast) in
-        let _ = time bench "eval" (fun () -> Eval.run ir) in
+        let _ = Debug.print_ir ir 0 in
+        let bc = time bench "codegen" (fun () -> Codegen.run ir) in
+        let _ = Debug.print_bc bc 0 in
+        let _ = time bench "eval" (fun () -> Eval.run bc) in
         print ()
     | _ -> print_usage ()

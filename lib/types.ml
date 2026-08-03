@@ -1,12 +1,14 @@
-type tt =
-  | Int
-  | Float
-  | Bool
-  | Char
-  | Str
-  | Void
-  | List of tt
-  | Fn of tt * tt list
+type t = Int | Float | Bool | Char | Str | Void | List of t | Fn of t * t list
 
-type tm = Const | Var
-type t = tt * tm
+let rec t_to_str (t : t) : string =
+  match t with
+  | Int -> "int"
+  | Float -> "float"
+  | Bool -> "bool"
+  | Char -> "char"
+  | Str -> "str"
+  | Void -> "void"
+  | List t' -> t_to_str t' ^ "[]"
+  | Fn (t, ts) ->
+      let args = String.concat ", " (List.map t_to_str ts) in
+      Printf.sprintf "(%s) -> %s" args (t_to_str t)

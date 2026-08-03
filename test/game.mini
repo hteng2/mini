@@ -1,62 +1,63 @@
-let randint = fn (max int) int {
+let randint fn (max int) int {
 	ftoi (rand() * itof(max))
 };
 
-let genprice = fn (center int, range int, _ void) int {
+let genprice fn (center int, range int) int {
 	randint(range) - range/2 + center
 };
 
-let rounds = 5;
-let length = 5;
-let ranges = [
+let rounds 5;
+let length 5;
+let ranges [
 	500, 	300, 	200,	150,	120,
 	100, 	80, 	60, 	50, 	30
 ];
 
-let trueprice = randint(500) + 500;
+let trueprice randint(500) + 500;
 
-var cash = 0;
-var eqs = 0;
+let profit (fn (cash int, eqs int, round int) int {
+	let s self;
+	if round >= rounds {
+		cash + eqs * trueprice
+	} else {
+    	print("initial min: ");
+    	let min atoi(readline());
 
-var round = 0;
-while round < rounds {
-	print("initial min: ");
-	let min = atoi(readline());
-	
-	print("initial max: ");
-	let max = atoi(readline());
+    	print("initial max: ");
+    	let max atoi(readline());
 
-	var t = 0;
-	while t < length {
-		let price = genprice(trueprice, ranges[round], ());
-		print(itoa(price));
+        (fn (t int, cash int, eqs int, k int(int, int)) int {
+            if t >= length {
+                k(cash, eqs)
+            } else {
+                let price genprice(trueprice, ranges[round]);
+                print(itoa(price));
 
-		if price > max {
-			print(" SELL");
-			cash = cash + price;
-			eqs = eqs - 1;
-		} else {};
+                let new_cash if price > max { cash + price } else { cash };
+                let new_eqs if price > max { eqs - 1 } else { eqs };
 
-		if price < min {
-			print(" BUY");
-			cash = cash - price;
-			eqs = eqs + 1;
-		} else {};
+                if price > max {
+                    println(" SELL")
+                } else {()};
 
-		println("");
+                if price < min {
+                    println(" BUY")
+                } else {()};
 
-		t = t + 1;
-	};
-
-	print("cash: ");
-	println(itoa(cash));
-	print("eqs: ");
-	println(itoa(eqs));
-
-	round = round + 1;
-};
+                self (t+1, new_cash, new_eqs, k)
+            }
+        }) (0, cash, eqs, (fn (cash int, eqs int) int {
+        	print("cash: ");
+        	println(itoa(cash));
+        	print("eqs: ");
+        	println(itoa(eqs));
+            s (cash, eqs, rounds+1)
+        }))
+    }
+}) (0, 0, 0);
 
 print("true price: ");
 println(itoa(trueprice));
 print("profit: ");
-println(itoa(cash + eqs * trueprice));
+println(itoa(profit));
+()

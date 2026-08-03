@@ -1,16 +1,12 @@
 open Mini
 
-type v =
+type value =
   | Int of int
   | Float of float
   | Bool of bool
   | Char of char
   | Str of string
   | Void
-  | List of v array
+  | List of value array
   | Fn of string list * value Closure.t * int
-  | Builtin of (v list -> v)
-
-and value = Var of v ref | Const of v
-
-let value_to_v value = match value with Var v -> !v | Const v -> v
+  | Builtin of (value list -> value)

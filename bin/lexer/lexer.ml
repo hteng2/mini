@@ -3,14 +3,10 @@ open Mini
 let n2t n =
   match n with
   | "let" -> Some Token.Let
-  | "var" -> Some Token.Var
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If
   | "else" -> Some Token.Else
-  | "while" -> Some Token.While
-  | "break" -> Some Token.Break
-  | "continue" -> Some Token.Continue
   | "fn" -> Some Token.Fn
   | "import" -> Some Token.Import
   | _ -> None
@@ -181,7 +177,7 @@ and t_op src sn (start, head) =
       | '}' -> Stream.Head ({ v = Token.Rbrace; span }, t src' sn head)
       | ',' -> Stream.Head ({ v = Token.Comma; span }, t src' sn head)
       | ';' -> Stream.Head ({ v = Token.Semicolon; span }, t src' sn head)
-      | '=' -> lex_2 src' span Token.Set '=' Token.Eq
+      | '=' -> Stream.Head ({ v = Token.Eq; span }, t src' sn head)
       | '>' -> lex_2 src' span Token.Gt '=' Token.Ge
       | '<' -> lex_2 src' span Token.Lt '=' Token.Le
       | '+' -> Stream.Head ({ v = Token.Add; span }, t src' sn head)
