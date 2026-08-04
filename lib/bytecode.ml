@@ -1,4 +1,4 @@
-type closure = unit Closure.t
+type closure = (int, unit) Hashtbl.t
 
 type e =
   (* atoms *)
@@ -6,7 +6,7 @@ type e =
   | Float of float
   | Char of char
   | Str of string
-  | Name of string
+  | Name of int
   | Bool of bool
   | Void
   (* arith *)
@@ -33,11 +33,12 @@ type e =
   | ListAt
   | StrAt
   (* function *)
-  (* params, closure captures, body size *)
-  | FnVal of string list * closure * int
+  (* params, closure captures, self, body size *)
+  | FnVal of int array * int array * int * int
   | FnCall of int
+  | FnTailCall of int
   (* decs *)
-  | Let of string
+  | Bind of int
   (* skip if true *)
   | If
   | Jmp of int

@@ -76,7 +76,7 @@ E ::=
 
 | `Lparen` E `Rparen`
 
-| `Let` `Str` E
+| `let` `Str` E
 
 | `If` E E `Else` E
 

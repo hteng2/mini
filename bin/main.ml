@@ -58,7 +58,7 @@ let analyze ast =
     let x = Analyzer.analyze ast in
     x
   with
-  | Typechecker.NameError { v; span = sn, (a, b), (c, d) } ->
+  | Symresolver.NameError { v; span = sn, (a, b), (c, d) } ->
       Printf.printf "error: %s %d:%d-%d:%d - name %s\n" sn a b c d v;
       exit 0
   | Typechecker.TypeError { v; span = sn, (a, b), (c, d) } ->
@@ -81,15 +81,18 @@ let () =
     let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
     match Sys.argv.(1) with
     | "i" ->
-        let ((_, _, print) as bench) = Bench.create "Mini Interpreter" in
-        let ast =
-          time bench "parse" (fun () ->
-              parse_and_import absolute_path (H.create 0))
-        in
-        let ir = time bench "analyze" (fun () -> analyze ast) in
-        let _ = Debug.print_ir ir 0 in
-        let bc = time bench "codegen" (fun () -> Codegen.run ir) in
-        let _ = Debug.print_bc bc 0 in
-        let _ = time bench "eval" (fun () -> Eval.run bc) in
-        print ()
+        parse_and_import absolute_path (H.create 0)
+        |> analyze
+        (* |> (fun ir ->
+        Debug.print_ir ir 0;
+        ir) *)
+        |> Optimizer.run
+        (* |> (fun ir ->
+        Debug.print_ir ir 0;
+        ir) *)
+        |> Codegen.run
+        (* |> (fun bc ->
+        Debug.print_bc bc 0;
+        bc) *)
+        |> Eval.run
     | _ -> print_usage ()

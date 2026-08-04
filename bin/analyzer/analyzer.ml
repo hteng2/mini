@@ -1,3 +1,3 @@
 open Mini
 
-let analyze ds = ds |> Typechecker.run |> Reducer.run
+let analyze ds = ds |> Symresolver.run |> Typechecker.run

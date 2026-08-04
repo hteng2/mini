@@ -269,7 +269,7 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
               { v = Ast.FnVal (ps, t, body); span = (sn, start_loc, end_loc) }
           in
           (ts7, Some expr)
-      | Token.Let ->
+      | Token.Bind ->
           let sn, start_loc, end_loc = span in
           let ts2, name =
             bind_name { v = "name"; span = (sn, start_loc, end_loc) } ts1
@@ -281,7 +281,7 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
           in
           let ts4, expr =
             advance_expr ts3 min_bp
-              { v = Ast.Let (name, expr); span = (sn, start_loc, end_loc) }
+              { v = Ast.Bind (name, expr); span = (sn, start_loc, end_loc) }
           in
           (ts4, Some expr)
       | Token.If ->

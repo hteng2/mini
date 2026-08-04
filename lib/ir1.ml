@@ -1,4 +1,4 @@
-type closure = unit Closure.t
+type closure = (int, unit) Hashtbl.t
 
 type e =
   (* atoms *)
@@ -6,7 +6,7 @@ type e =
   | Float of float
   | Char of char
   | Str of string
-  | Name of string
+  | Name of int
   | Bool of bool
   | Void
   (* arith *)
@@ -30,18 +30,14 @@ type e =
   | Le of expr * expr
   (* lists *)
   | List of expr list
-  | ListAt of expr * expr
-  | StrAt of expr * expr
+  | At of expr * expr
   (* function *)
-  | FnVal of string list * closure * expr
+  | FnVal of (int * Ast.mini_type) list * closure * Ast.mini_type * int * expr
   | FnCall of expr * expr list
   (* decs *)
-  | Let of string * expr
+  | Bind of int * expr
   | If of expr * expr * expr
   (* closure captures, body *)
   | Block of expr Array.t
-  (* etc *)
-  | Do of expr
-  | Noop
 
-and expr = (e * Types.t) Loc.spanned
+and expr = e Loc.spanned

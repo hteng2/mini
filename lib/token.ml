@@ -35,7 +35,7 @@ type token =
   | Not
   | Xor
   (* keywords *)
-  | Let
+  | Bind
   | Print
   | Println
   | If

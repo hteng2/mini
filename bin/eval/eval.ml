@@ -8,7 +8,8 @@ let exec es scopes =
   let ls = Stack.create () in
   let cs = Stack.create () in
   let rec helper expr i scope =
-    Printf.printf "| %d %d\n" i (Stack.length vs);
+    (* Printf.printf "i = %d; vs = %d; ls = %d; cs = %d\n" i (Stack.length vs)
+      (Stack.length ls) (Stack.length cs); *)
     if i >= Array.length expr then ()
     else
       match expr.(i) with
@@ -25,10 +26,8 @@ let exec es scopes =
           Stack.push (Values.Str s) vs;
           helper expr (i + 1) scope
       | Bytecode.Name name ->
-          (match Closure.search [ scope ] name with
-          | None ->
-              print_endline name;
-              assert false
+          (match Hashtbl.find_opt scope name with
+          | None -> assert false
           | Some value -> Stack.push value vs);
           helper expr (i + 1) scope
       | Bytecode.Bool b ->
@@ -211,40 +210,49 @@ let exec es scopes =
                else raise Range
            | _ -> assert false);
           helper expr (i + 1) scope
-      | Bytecode.FnVal (ps, c, len) ->
-          let c' = Closure.empty () in
-          Closure.iter
-            (fun name _ ->
-              match Closure.search [ scope ] name with
-              | None ->
-                  print_string "a";
-                  Printf.printf "\"%s\"\n" name
-              | Some value -> Closure.set c' name value)
+      | Bytecode.FnVal (ps, c, self, len) ->
+          let c' = Hashtbl.create 0 in
+          Array.iter
+            (fun name ->
+              match Hashtbl.find_opt scope name with
+              | None -> assert false
+              | Some value -> Hashtbl.add c' name value)
             c;
-          Stack.push (Values.Fn (ps, c', i + 1)) vs;
+          Stack.push (Values.Fn (ps, c', self, i + 1)) vs;
           helper expr (i + 1 + len) scope
       | Bytecode.FnCall len -> (
-          let args = List.init len (fun _ -> Stack.pop vs) in
-          let args' = List.rev args in
+          let args =
+            List.init len (fun _ -> Stack.pop vs) |> List.rev |> Array.of_list
+          in
           let fn' = Stack.pop vs in
           match fn' with
-          | Values.Fn (ps, closure, loc) ->
-              let () = Closure.set closure "self" fn' in
-              List.iter2
-                (fun name ->
-                  fun arg ->
-                   if name = "_" then () else Closure.set closure name arg)
-                ps args';
+          | Values.Fn (ps, closure, self, loc) ->
+              let () = Hashtbl.add closure self fn' in
+              Array.iter2 (fun name arg -> Hashtbl.add closure name arg) ps args;
               Stack.push scope cs;
               Stack.push (i + 1) ls;
               helper expr loc closure
           | Values.Builtin body ->
-              Stack.push (body args') vs;
+              Stack.push (body args) vs;
               helper expr (i + 1) scope
           | _ -> assert false)
-      | Bytecode.Let id ->
+      | Bytecode.FnTailCall len -> (
+          let args =
+            List.init len (fun _ -> Stack.pop vs) |> List.rev |> Array.of_list
+          in
+          let fn' = Stack.pop vs in
+          match fn' with
+          | Values.Fn (ps, closure, self, loc) ->
+              let () = Hashtbl.add closure self fn' in
+              Array.iter2 (fun name arg -> Hashtbl.add closure name arg) ps args;
+              helper expr loc closure
+          | Values.Builtin body ->
+              Stack.push (body args) vs;
+              helper expr (i + 1) scope
+          | _ -> assert false)
+      | Bytecode.Bind id ->
           let v = Stack.pop vs in
-          Closure.set scope id v;
+          Hashtbl.add scope id v;
           helper expr (i + 1) scope
       | Bytecode.If -> (
           match Stack.pop vs with
@@ -260,10 +268,10 @@ let exec es scopes =
   helper es 0 scopes
 
 let run ds =
-  let scope = Closure.empty () in
-  Builtins.Fns.iter
-    (fun name ({ def } : Builtins.builtinFn) ->
-      Closure.set scope name (Values.Builtin def))
+  let scope = Hashtbl.create 0 in
+  List.iteri
+    (fun i (bfn : Builtins.builtinFn) ->
+      Hashtbl.add scope i (Values.Builtin bfn.def))
     Builtins.builtins;
   exec ds scope;
   flush stdout

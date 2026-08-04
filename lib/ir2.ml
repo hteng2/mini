@@ -1,26 +1,14 @@
-type mt =
-  | MtBase of string
-  | MtList of mini_type
-  | MtFn of mini_type * mini_type list
-
-and mini_type = mt Loc.spanned
-
-type p = string * mini_type
-and param = p Loc.spanned
-
 type e =
   (* atoms *)
   | Int of int
   | Float of float
   | Char of char
   | Str of string
-  | Name of string
-  | True
-  | False
+  | Name of int
+  | Bool of bool
   | Void
   (* arith *)
   | Neg of expr
-  | Pos of expr
   | Add of expr * expr
   | Sub of expr * expr
   | Mul of expr * expr
@@ -33,20 +21,26 @@ type e =
   | Xor of expr * expr
   (* comp *)
   | Eq of expr * expr
-  | Gt of expr * expr
-  | Lt of expr * expr
   | Neq of expr * expr
+  | Gt of expr * expr
   | Ge of expr * expr
+  | Lt of expr * expr
   | Le of expr * expr
   (* lists *)
   | List of expr list
-  | At of expr * expr
+  | ListAt of expr * expr
+  | StrAt of expr * expr
   (* function *)
-  | FnVal of param list * mini_type * expr
+  | FnVal of int list * int list * int * expr
   | FnCall of expr * expr list
+  | FnTailCall of expr * expr list
   (* decs *)
-  | Bind of string * expr
+  | Bind of int * expr
   | If of expr * expr * expr
-  | Block of expr Queue.t
+  (* closure captures, body *)
+  | Block of expr Array.t
+  (* etc *)
+  | Do of expr
+  | Noop
 
-and expr = e Loc.spanned
+and expr = (e * Types.t) Loc.spanned

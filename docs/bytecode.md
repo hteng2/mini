@@ -1,17 +1,16 @@
 # Bytecode specification
 
-## Data
+## Datatypes
 
-Int -> int
-Bool -> bool
-Char -> char
-Str -> pass by ptr, char array on heap
-Void -> _
-List -> pass by ptr, array on heap
-Fn -> pass by ptr, fn on heap
+0: void (0 bytes)
+1: bool (1 byte)
+2: char (1 byte)
+3: int (8 bytes)
+4: ptr (8 bytes)
 
-array -> len data, data
-fn -> len closures, closures, len params, body
+    - array is int followed by data
+    - str is a char array
+    - fn is param array, closure array, self, body size
 
 ## Moving data
 

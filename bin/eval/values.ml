@@ -8,5 +8,5 @@ type value =
   | Str of string
   | Void
   | List of value array
-  | Fn of string list * value Closure.t * int
-  | Builtin of (value list -> value)
+  | Fn of int array * (int, value) Hashtbl.t * int * int
+  | Builtin of (value array -> value)

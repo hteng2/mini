@@ -2,7 +2,7 @@ open Mini
 
 let n2t n =
   match n with
-  | "let" -> Some Token.Let
+  | "let" -> Some Token.Bind
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If

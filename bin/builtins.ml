@@ -1,114 +1,106 @@
 open Mini
-module Fns = Hashtbl.Make (String)
 
 type builtinFn = {
-  types : Types.t;
+  name : string;
+  fnType : Types.t;
   pure : bool;
-  def : Values.value list -> Values.value;
+  def : Values.value array -> Values.value;
 }
 
-let builtins : builtinFn Fns.t = Fns.create 0
-
-let () =
-  Fns.add builtins "print"
+let builtins : builtinFn list =
+  [
     {
-      types = Types.Fn (Types.Void, [ Types.Str ]);
+      name = "print";
+      fnType = Types.Fn (Types.Void, [ Types.Str ]);
       pure = false;
       def =
         (fun s ->
-          match s with
-          | Values.Str s :: [] ->
+          match s.(0) with
+          | Values.Str s ->
               print_string s;
               flush stdout;
               Values.Void
           | _ -> assert false);
     };
-
-  Fns.add builtins "println"
     {
-      types = Types.Fn (Types.Void, [ Types.Str ]);
+      name = "println";
+      fnType = Types.Fn (Types.Void, [ Types.Str ]);
       pure = false;
       def =
         (fun s ->
-          match s with
-          | Values.Str s :: [] ->
+          match s.(0) with
+          | Values.Str s ->
               print_endline s;
               flush stdout;
               Values.Void
           | _ -> assert false);
     };
-
-  Fns.add builtins "readline"
     {
-      types = Types.Fn (Types.Str, []);
+      name = "readline";
+      fnType = Types.Fn (Types.Str, []);
       pure = false;
       def = (fun _ -> Values.Str (read_line ()));
     };
-
-  Fns.add builtins "itoa"
     {
-      types = Types.Fn (Types.Str, [ Types.Int ]);
+      name = "itoa";
+      fnType = Types.Fn (Types.Str, [ Types.Int ]);
       pure = true;
       def =
         (fun i ->
-          match i with
-          | Values.Int i :: [] -> Values.Str (Int.to_string i)
+          match i.(0) with
+          | Values.Int i -> Values.Str (Int.to_string i)
           | _ -> assert false);
     };
-
-  Fns.add builtins "ftoa"
     {
-      types = Types.Fn (Types.Str, [ Types.Float ]);
+      name = "ftoa";
+      fnType = Types.Fn (Types.Str, [ Types.Float ]);
       pure = true;
       def =
         (fun i ->
-          match i with
-          | Values.Float n :: [] -> Values.Str (Float.to_string n)
+          match i.(0) with
+          | Values.Float n -> Values.Str (Float.to_string n)
           | _ -> assert false);
     };
-
-  Fns.add builtins "ftoi"
     {
-      types = Types.Fn (Types.Int, [ Types.Float ]);
+      name = "ftoi";
+      fnType = Types.Fn (Types.Int, [ Types.Float ]);
       pure = true;
       def =
         (fun i ->
-          match i with
-          | Values.Float n :: [] -> Values.Int (Float.to_int n)
+          match i.(0) with
+          | Values.Float n -> Values.Int (Float.to_int n)
           | _ -> assert false);
     };
-
-  Fns.add builtins "itof"
     {
-      types = Types.Fn (Types.Float, [ Types.Int ]);
+      name = "itof";
+      fnType = Types.Fn (Types.Float, [ Types.Int ]);
       pure = true;
       def =
         (fun i ->
-          match i with
-          | Values.Int n :: [] -> Values.Float (Float.of_int n)
+          match i.(0) with
+          | Values.Int n -> Values.Float (Float.of_int n)
           | _ -> assert false);
     };
-
-  Fns.add builtins "atoi"
     {
-      types = Types.Fn (Types.Int, [ Types.Str ]);
+      name = "atoi";
+      fnType = Types.Fn (Types.Int, [ Types.Str ]);
       pure = true;
       def =
         (fun s ->
-          match s with
-          | Values.Str s :: [] -> (
+          match s.(0) with
+          | Values.Str s -> (
               match int_of_string_opt s with
               | Some i -> Values.Int i
               | None -> Values.Int 0)
           | _ -> assert false);
     };
-
-  Fns.add builtins "rand"
     {
-      types = Types.Fn (Types.Float, []);
+      name = "rand";
+      fnType = Types.Fn (Types.Float, []);
       pure = false;
       def =
         (fun _ ->
           Random.self_init ();
           Values.Float (Random.float 1.0));
-    }
+    };
+  ]

@@ -15,6 +15,9 @@ let ranges [
 
 let trueprice randint(500) + 500;
 
+print("true price: ");
+println(itoa(trueprice));
+
 let profit (fn (cash int, eqs int, round int) int {
 	let s self;
 	if round >= rounds {
@@ -37,12 +40,14 @@ let profit (fn (cash int, eqs int, round int) int {
                 let new_eqs if price > max { eqs - 1 } else { eqs };
 
                 if price > max {
-                    println(" SELL")
+                    print(" SELL")
                 } else {()};
 
                 if price < min {
-                    println(" BUY")
+                    print(" BUY")
                 } else {()};
+
+                println("");
 
                 self (t+1, new_cash, new_eqs, k)
             }
@@ -51,7 +56,7 @@ let profit (fn (cash int, eqs int, round int) int {
         	println(itoa(cash));
         	print("eqs: ");
         	println(itoa(eqs));
-            s (cash, eqs, rounds+1)
+            s (cash, eqs, round+1)
         }))
     }
 }) (0, 0, 0);

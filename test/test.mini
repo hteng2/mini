@@ -1,1 +1,13 @@
-itoa(1+1)
+# (fn (i int, max int) void {
+#     if i < max {
+#         self (i + 1, max)
+#     } else {
+#         ()
+#     }
+# }) (0, 1000000)
+
+(fn () void {
+    if true {
+        println("Hello, World!")
+    } else ()
+}) ()

@@ -1,14 +1,6 @@
-# fibbonacci
-var n0 = -1
-var n1 = 1
-
-var i = 0
-let limit = 10
-
-while i < limit {
-	let n2 = n0 + n1
-	println n2
-	n0 = n1
-	n1 = n2
-	i = i + 1
-}
+let iters 1000000;
+(fn (i int) void {
+    if i < iters {
+        self (i+1)
+    } else ()
+}) (0)

@@ -40,7 +40,7 @@ let t2s t =
   | Token.Or -> "Or\t"
   | Token.Not -> "Not\t"
   | Token.Xor -> "Xor\t"
-  | Token.Let -> "Let\t"
+  | Token.Bind -> "let\t"
   | Token.Print -> "Print\t"
   | Token.Println -> "Println\t"
   | Token.If -> "If\t"
@@ -158,7 +158,7 @@ and print_expr (expr : Ast.expr) lvl : unit =
       Printf.printf "fncall\n";
       print_expr e (lvl + 1);
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
-  | Ast.Let (n, e) ->
+  | Ast.Bind (n, e) ->
       Printf.printf "let : name = %s\n" n;
       print_expr e (lvl + 1)
   | Ast.If (e, ds, ds2) ->
@@ -190,125 +190,129 @@ and print_type t lvl =
       print_type t' (lvl + 1);
       List.iter (fun t -> print_type t (lvl + 1)) ts
 
-let rec print_ir (ds : Ir.expr Array.t) lvl =
+let rec print_ir (ds : Ir2.expr Array.t) lvl =
   Array.iter (fun expr -> print_e expr lvl) ds
 
-and print_e (expr : Ir.expr) lvl : unit =
-  let ({ v = e, _; _ } : Ir.expr) = expr in
+and print_e (expr : Ir2.expr) lvl : unit =
+  let ({ v = e, _; _ } : Ir2.expr) = expr in
   print_string (String.make (2 * lvl) ' ');
   match e with
-  | Ir.Int n -> Printf.printf "%d\n" n
-  | Ir.Float n -> Printf.printf "%f\n" n
-  | Ir.Char c -> Printf.printf "%c\n" c
-  | Ir.Str s -> Printf.printf "%s\n" s
-  | Ir.Name n -> Printf.printf "name %s\n" n
-  | Ir.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
-  | Ir.Void -> Printf.printf "void\n"
-  | Ir.Neg e ->
+  | Ir2.Int n -> Printf.printf "%d\n" n
+  | Ir2.Float n -> Printf.printf "%f\n" n
+  | Ir2.Char c -> Printf.printf "%c\n" c
+  | Ir2.Str s -> Printf.printf "%s\n" s
+  | Ir2.Name n -> Printf.printf "name %d\n" n
+  | Ir2.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
+  | Ir2.Void -> Printf.printf "void\n"
+  | Ir2.Neg e ->
       Printf.printf "neg\n";
       print_e e (lvl + 1)
-  | Ir.Add (e1, e2) ->
+  | Ir2.Add (e1, e2) ->
       Printf.printf "add\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Sub (e1, e2) ->
+  | Ir2.Sub (e1, e2) ->
       Printf.printf "sub\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Mul (e1, e2) ->
+  | Ir2.Mul (e1, e2) ->
       Printf.printf "mul\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Div (e1, e2) ->
+  | Ir2.Div (e1, e2) ->
       Printf.printf "div\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Mod (e1, e2) ->
+  | Ir2.Mod (e1, e2) ->
       Printf.printf "mod\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Not e ->
+  | Ir2.Not e ->
       Printf.printf "not\n";
       print_e e (lvl + 1)
-  | Ir.And (e1, e2) ->
+  | Ir2.And (e1, e2) ->
       Printf.printf "and\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Or (e1, e2) ->
+  | Ir2.Or (e1, e2) ->
       Printf.printf "or\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Xor (e1, e2) ->
+  | Ir2.Xor (e1, e2) ->
       Printf.printf "xor\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Eq (e1, e2) ->
+  | Ir2.Eq (e1, e2) ->
       Printf.printf "eq\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Neq (e1, e2) ->
+  | Ir2.Neq (e1, e2) ->
       Printf.printf "neq\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Gt (e1, e2) ->
+  | Ir2.Gt (e1, e2) ->
       Printf.printf "gt\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Ge (e1, e2) ->
+  | Ir2.Ge (e1, e2) ->
       Printf.printf "ge\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Lt (e1, e2) ->
+  | Ir2.Lt (e1, e2) ->
       Printf.printf "lt\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Le (e1, e2) ->
+  | Ir2.Le (e1, e2) ->
       Printf.printf "le\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.List es ->
+  | Ir2.List es ->
       Printf.printf "list\n";
       List.iter (fun e -> print_e e (lvl + 1)) es
-  | Ir.ListAt (e1, e2) ->
+  | Ir2.ListAt (e1, e2) ->
       Printf.printf "listat\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.StrAt (e1, e2) ->
+  | Ir2.StrAt (e1, e2) ->
       Printf.printf "strat\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.FnVal (ps, c, body) ->
+  | Ir2.FnVal (ps, c, self, body) ->
       Printf.printf "fnval\n";
       List.iter (fun p -> print_param p (lvl + 1)) ps;
-      Closure.iter (fun name _ -> print_closure name (lvl + 1)) c;
+      List.iter (fun name -> print_closure name (lvl + 1)) c;
       print_e body (lvl + 1)
-  | Ir.FnCall (e, es) ->
+  | Ir2.FnCall (e, es) ->
       Printf.printf "fncall\n";
       print_e e (lvl + 1);
       List.iter (fun e -> print_e e (lvl + 1)) es
-  | Ir.Let (n, e) ->
-      Printf.printf "let : name = %s\n" n;
+  | Ir2.FnTailCall (e, es) ->
+      Printf.printf "fntailcall\n";
+      print_e e (lvl + 1);
+      List.iter (fun e -> print_e e (lvl + 1)) es
+  | Ir2.Bind (n, e) ->
+      Printf.printf "let : name = %d\n" n;
       print_e e (lvl + 1)
-  | Ir.If (e, e1, e2) ->
+  | Ir2.If (e, e1, e2) ->
       Printf.printf "if\n";
       print_e e (lvl + 1);
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir.Block ds ->
+  | Ir2.Block ds ->
       Printf.printf "block\n";
       Array.iter (fun e -> print_e e (lvl + 1)) ds
-  | Ir.Do e ->
+  | Ir2.Do e ->
       Printf.printf "do\n";
       print_e e (lvl + 1)
-  | Ir.Noop -> Printf.printf "noop\n"
+  | Ir2.Noop -> Printf.printf "noop\n"
 
 and print_param name lvl =
   print_string (String.make (2 * lvl) ' ');
-  Printf.printf "param %s\n" name
+  Printf.printf "param %d\n" name
 
 and print_closure name lvl =
   print_string (String.make (2 * lvl) ' ');
-  Printf.printf "closure %s\n" name
+  Printf.printf "closure %d\n" name
 
 let rec print_bc p lvl = Array.iteri (fun i d -> print_e i d lvl) p
 
@@ -320,7 +324,7 @@ and print_e i expr lvl : unit =
   | Bytecode.Float n -> Printf.printf "%f\n" n
   | Bytecode.Char c -> Printf.printf "%c\n" c
   | Bytecode.Str s -> Printf.printf "%s\n" s
-  | Bytecode.Name n -> Printf.printf "name %s\n" n
+  | Bytecode.Name n -> Printf.printf "name %d\n" n
   | Bytecode.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
   | Bytecode.Void -> Printf.printf "void\n"
   | Bytecode.Neg -> Printf.printf "neg\n"
@@ -342,26 +346,27 @@ and print_e i expr lvl : unit =
   | Bytecode.List len -> Printf.printf "list %d\n" len
   | Bytecode.ListAt -> Printf.printf "list at\n"
   | Bytecode.StrAt -> Printf.printf "str at\n"
-  | Bytecode.FnVal (ps, t, len) ->
-      Printf.printf "fnval %d\n" len;
-      List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
-      Closure.iter (fun name _ -> print_closure name (lvl + 1)) t
+  | Bytecode.FnVal (ps, c, self, len) ->
+      Printf.printf "fnval (%d) %d\n" self len;
+      Array.iter (fun p -> print_param p (lvl + 1)) ps;
+      Array.iter (fun name -> print_closure name (lvl + 1)) c
   | Bytecode.FnCall len -> Printf.printf "fncall %d\n" len
-  | Bytecode.Let v -> Printf.printf "let %s\n" v
+  | Bytecode.FnTailCall len -> Printf.printf "fntailcall %d\n" len
+  | Bytecode.Bind v -> Printf.printf "let %d\n" v
   | Bytecode.If -> Printf.printf "if\n"
   | Bytecode.Jmp n -> Printf.printf "jmp %d\n" n
   | Bytecode.JmpBck -> Printf.printf "jmpbck\n"
   | Bytecode.Pop -> Printf.printf "pop\n"
 
-and print_param (param : string) lvl =
+and print_param param lvl =
   print_string (String.make (2 * lvl) ' ');
   let name = param in
-  Printf.printf "param %s\n" name
+  Printf.printf "param %d\n" name
 
-and print_closure (param : string) lvl =
+and print_closure param lvl =
   print_string (String.make (2 * lvl) ' ');
   let name = param in
-  Printf.printf "closure %s\n" name
+  Printf.printf "closure %d\n" name
 
 let rec print_type t lvl =
   print_string (String.make (2 * lvl) ' ');
@@ -379,3 +384,30 @@ let rec print_type t lvl =
       print_endline "fn";
       print_type t (lvl + 1);
       List.iter (fun t -> print_type t (lvl + 1)) ts
+
+(* recursively print a value, indented by lvl *)
+let rec print_value (v : Values.value) lvl : unit =
+  let indent = String.make (2 * lvl) ' ' in
+  match v with
+  | Values.Int n -> Printf.printf "%sint %d\n" indent n
+  | Values.Float n -> Printf.printf "%sfloat %f\n" indent n
+  | Values.Bool b -> Printf.printf "%sbool %b\n" indent b
+  | Values.Char c -> Printf.printf "%schar %c\n" indent c
+  | Values.Str s -> Printf.printf "%sstr %s\n" indent s
+  | Values.Void -> Printf.printf "%svoid\n" indent
+  | Values.List a ->
+      Printf.printf "%slist [%d]\n" indent (Array.length a);
+      Array.iter (fun v -> print_value v (lvl + 1)) a
+  | Values.Fn (ps, c, self, loc) ->
+      Printf.printf "%sfn %d (%s) @ %d\n" indent self
+        (ps |> Array.map string_of_int |> Array.to_list |> String.concat ", ")
+        loc;
+      Hashtbl.iter
+        (fun i v ->
+          let indent = String.make (2 * (lvl + 1)) ' ' in
+          Printf.printf "%s%d =\n" indent i;
+          print_value v (lvl + 1))
+        c
+  | Values.Builtin _ -> Printf.printf "%sbuiltin\n" indent
+
+let print_value_top v = print_value v 0

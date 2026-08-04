@@ -11,7 +11,7 @@
 | `True`      | `true`                    |
 | `False`     | `false`                   |
 | `Void`      | `_`                       |
-| `Let`       | `let`                     |
+| `Bind`      | `bind`                    |
 | `If`        | `if`                      |
 | `Else`      | `else`                    |
 | `While`     | `while`                   |
