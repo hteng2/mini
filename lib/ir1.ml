@@ -1,5 +1,3 @@
-type closure = (int, unit) Hashtbl.t
-
 type e =
   (* atoms *)
   | Int of int
@@ -11,6 +9,7 @@ type e =
   | Void
   (* arith *)
   | Neg of expr
+  | Pos of expr
   | Add of expr * expr
   | Sub of expr * expr
   | Mul of expr * expr
@@ -32,7 +31,7 @@ type e =
   | List of expr list
   | At of expr * expr
   (* function *)
-  | FnVal of (int * Ast.mini_type) list * closure * Ast.mini_type * int * expr
+  | FnVal of (int * Ast.mini_type) list * int list * Ast.mini_type * int * expr
   | FnCall of expr * expr list
   (* decs *)
   | Bind of int * expr

@@ -31,7 +31,7 @@ type e =
   | ListAt of expr * expr
   | StrAt of expr * expr
   (* function *)
-  | FnVal of int list * int list * int * expr
+  | FnVal of int * int list * expr
   | FnCall of expr * expr list
   | FnTailCall of expr * expr list
   (* decs *)

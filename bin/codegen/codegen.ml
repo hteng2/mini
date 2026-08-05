@@ -84,14 +84,10 @@ and flatten_expr expr (k : Bytecode.e Queue.t -> 'a) =
     | Ir2.StrAt (e1, e2) ->
         helper e1 (fun () ->
             helper e2 (fun () -> Queue.add Bytecode.StrAt q |> k))
-    | Ir2.FnVal (names, c, self, body) ->
+    | Ir2.FnVal (ps, c, body) ->
         flatten_expr body (fun body' ->
             Queue.add
-              (Bytecode.FnVal
-                 ( Array.of_list names,
-                   Array.of_list c,
-                   self,
-                   Queue.length body' + 1 ))
+              (Bytecode.FnVal (ps, Array.of_list c, Queue.length body' + 1))
               q;
             Queue.transfer body' q;
             Queue.add Bytecode.JmpBck q;

@@ -1,4 +1,4 @@
-let iters 1000000;
+let iters 4000000;
 (fn (i int) void {
     if i < iters {
         self (i+1)

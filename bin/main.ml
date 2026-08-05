@@ -83,16 +83,16 @@ let () =
     | "i" ->
         parse_and_import absolute_path (H.create 0)
         |> analyze
-        (* |> (fun ir ->
+        |> (fun ir ->
         Debug.print_ir ir 0;
-        ir) *)
+        ir)
         |> Optimizer.run
-        (* |> (fun ir ->
+        |> (fun ir ->
         Debug.print_ir ir 0;
-        ir) *)
+        ir)
         |> Codegen.run
-        (* |> (fun bc ->
+        |> (fun bc ->
         Debug.print_bc bc 0;
-        bc) *)
+        bc)
         |> Eval.run
     | _ -> print_usage ()

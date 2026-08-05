@@ -3,7 +3,7 @@ open Mini
 exception Div
 exception Range
 
-let exec es scopes =
+let exec es scope =
   let vs = Stack.create () in
   let ls = Stack.create () in
   let cs = Stack.create () in
@@ -210,15 +210,15 @@ let exec es scopes =
                else raise Range
            | _ -> assert false);
           helper expr (i + 1) scope
-      | Bytecode.FnVal (ps, c, self, len) ->
+      | Bytecode.FnVal (ps, c, len) ->
           let c' = Hashtbl.create 0 in
-          Array.iter
-            (fun name ->
+          Array.iteri
+            (fun i name ->
               match Hashtbl.find_opt scope name with
               | None -> assert false
-              | Some value -> Hashtbl.add c' name value)
+              | Some value -> Hashtbl.add c' (ps + i + 1) value)
             c;
-          Stack.push (Values.Fn (ps, c', self, i + 1)) vs;
+          Stack.push (Values.Fn (c', i + 1)) vs;
           helper expr (i + 1 + len) scope
       | Bytecode.FnCall len -> (
           let args =
@@ -226,9 +226,9 @@ let exec es scopes =
           in
           let fn' = Stack.pop vs in
           match fn' with
-          | Values.Fn (ps, closure, self, loc) ->
-              let () = Hashtbl.add closure self fn' in
-              Array.iter2 (fun name arg -> Hashtbl.add closure name arg) ps args;
+          | Values.Fn (closure, loc) ->
+              let () = Hashtbl.add closure 0 fn' in
+              Array.iteri (fun i arg -> Hashtbl.add closure (i + 1) arg) args;
               Stack.push scope cs;
               Stack.push (i + 1) ls;
               helper expr loc closure
@@ -242,14 +242,16 @@ let exec es scopes =
           in
           let fn' = Stack.pop vs in
           match fn' with
-          | Values.Fn (ps, closure, self, loc) ->
-              let () = Hashtbl.add closure self fn' in
-              Array.iter2 (fun name arg -> Hashtbl.add closure name arg) ps args;
+          | Values.Fn (closure, loc) ->
+              let () = Hashtbl.add closure 0 fn' in
+              Array.iteri (fun i arg -> Hashtbl.add closure (i + 1) arg) args;
               helper expr loc closure
           | Values.Builtin body ->
               Stack.push (body args) vs;
               helper expr (i + 1) scope
-          | _ -> assert false)
+          | _ ->
+              Debug.print_value fn' 0;
+              assert false)
       | Bytecode.Bind id ->
           let v = Stack.pop vs in
           Hashtbl.add scope id v;
@@ -265,7 +267,7 @@ let exec es scopes =
           let _ = Stack.pop vs in
           helper expr (i + 1) scope
   in
-  helper es 0 scopes
+  helper es 0 scope
 
 let run ds =
   let scope = Hashtbl.create 0 in

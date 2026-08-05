@@ -33,8 +33,8 @@ type e =
   | ListAt
   | StrAt
   (* function *)
-  (* params, closure captures, self, body size *)
-  | FnVal of int array * int array * int * int
+  (* params, closure captures, body size *)
+  | FnVal of int * int array * int
   | FnCall of int
   | FnTailCall of int
   (* decs *)

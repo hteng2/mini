@@ -18,11 +18,9 @@
 
 stack -> x :: stack
 
-**Alloc**
+**Pop**
 
-n :: stack -> i :: stack
-
-finds an index i on the heap with n free slots
+x :: stack -> stack
 
 **Store**
 

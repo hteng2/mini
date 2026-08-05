@@ -277,9 +277,8 @@ and print_e (expr : Ir2.expr) lvl : unit =
       Printf.printf "strat\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir2.FnVal (ps, c, self, body) ->
-      Printf.printf "fnval\n";
-      List.iter (fun p -> print_param p (lvl + 1)) ps;
+  | Ir2.FnVal (ps, c, body) ->
+      Printf.printf "fnval %d\n" ps;
       List.iter (fun name -> print_closure name (lvl + 1)) c;
       print_e body (lvl + 1)
   | Ir2.FnCall (e, es) ->
@@ -346,9 +345,8 @@ and print_e i expr lvl : unit =
   | Bytecode.List len -> Printf.printf "list %d\n" len
   | Bytecode.ListAt -> Printf.printf "list at\n"
   | Bytecode.StrAt -> Printf.printf "str at\n"
-  | Bytecode.FnVal (ps, c, self, len) ->
-      Printf.printf "fnval (%d) %d\n" self len;
-      Array.iter (fun p -> print_param p (lvl + 1)) ps;
+  | Bytecode.FnVal (ps, c, len) ->
+      Printf.printf "fnval (%d) %d\n" ps len;
       Array.iter (fun name -> print_closure name (lvl + 1)) c
   | Bytecode.FnCall len -> Printf.printf "fncall %d\n" len
   | Bytecode.FnTailCall len -> Printf.printf "fntailcall %d\n" len
@@ -398,10 +396,8 @@ let rec print_value (v : Values.value) lvl : unit =
   | Values.List a ->
       Printf.printf "%slist [%d]\n" indent (Array.length a);
       Array.iter (fun v -> print_value v (lvl + 1)) a
-  | Values.Fn (ps, c, self, loc) ->
-      Printf.printf "%sfn %d (%s) @ %d\n" indent self
-        (ps |> Array.map string_of_int |> Array.to_list |> String.concat ", ")
-        loc;
+  | Values.Fn (c, loc) ->
+      Printf.printf "%sfn @ %d\n" indent loc;
       Hashtbl.iter
         (fun i v ->
           let indent = String.make (2 * (lvl + 1)) ' ' in

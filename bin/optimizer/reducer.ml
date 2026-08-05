@@ -242,12 +242,12 @@ let rec reduce (ir : Ir2.expr) ctx =
           | Types.Str, Ir2.Str s1, Ir2.Int s2 ->
               (true, true, { ir with v = (Ir2.Char s1.[s2], snd ir.v) })
           | _ -> assert false)
-    | Ir2.FnVal (args, closure, self, body) ->
+    | Ir2.FnVal (argc, closure, body) ->
         let ctx' = { exprtail = true; fntail = false; fn = true } in
         let pure, body' = reduce body ctx' in
         ( false,
           true,
-          { ir with v = (Ir2.FnVal (args, closure, self, body'), snd ir.v) } )
+          { ir with v = (Ir2.FnVal (argc, closure, body'), snd ir.v) } )
     | Ir2.FnCall (e1, es) ->
         let ctx' = { exprtail = true; fntail = false; fn = false } in
         let pure1, e1' = reduce e1 ctx' in
