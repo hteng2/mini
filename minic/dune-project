@@ -1,0 +1,18 @@
+(lang dune 3.22)
+
+(name minic)
+
+(generate_opam_files true)
+
+(source
+ (github hteng2/mini))
+
+(authors "Henry Teng <hongyuanteng@gmail.com>")
+
+(license LICENSE)
+
+(package
+ (name minic)
+ (synopsis "a very simple functional language")
+ (description "a very simple functional language")
+ (depends ocaml))
