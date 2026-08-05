@@ -1,9 +1,0 @@
-var x = 0
-while x < 100 {
-	if x % 2 = 0 {
-		println 0
-	} else {
-		println 1
-	}
-	x = x + 1
-}

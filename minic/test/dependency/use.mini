@@ -1,5 +1,0 @@
-import "test/dependency/def.mini"
-
-if magic_number = 1234 {
-	println "yay!"
-}
