@@ -311,55 +311,70 @@ let exec es scope =
                else raise Range
            | _ -> assert false);
           helper expr (i + 1) scope
+      (* tuples *)
+      | Ir3.Tuple len ->
+          let a = List.init len (fun _ -> Stack.pop vs) in
+          let b = List.rev a in
+          Stack.push (Values.Tuple b) vs;
+          helper expr (i + 1) scope
       (* function *)
       | Ir3.FnVal (ps, c, len) ->
           let c' = Array.map (fun name -> Hashtbl.find scope name) c in
           Stack.push (Values.Fn (c', i + 1)) vs;
           helper expr (i + 1 + len) scope
-      | Ir3.FnCall len -> (
-          let args =
-            List.init len (fun _ -> Stack.pop vs) |> List.rev |> Array.of_list
-          in
-          let fn' = Stack.pop vs in
-          match fn' with
-          | Values.Fn (closure, loc) ->
+      | Ir3.FnCall -> (
+          let arg = Stack.pop vs in
+          let fn = Stack.pop vs in
+          match (arg, fn) with
+          | _, Values.Fn (closure, loc) ->
               let scope' = Hashtbl.create 0 in
-              let () = Hashtbl.add scope' 0 fn' in
-              Array.iteri (fun i arg -> Hashtbl.add scope' (i + 1) arg) args;
-              Array.iteri
-                (fun i v -> Hashtbl.add scope' (len + i + 1) v)
-                closure;
+              (match arg with
+              | Values.Tuple args ->
+                  let len = List.length args in
+                  let () = Hashtbl.add scope' 0 fn in
+                  List.iteri (fun i arg -> Hashtbl.add scope' (i + 1) arg) args;
+                  Array.iteri
+                    (fun i v -> Hashtbl.add scope' (len + i + 1) v)
+                    closure
+              | _ ->
+                  let () = Hashtbl.add scope' 0 fn in
+                  Hashtbl.add scope' 1 arg;
+                  Array.iteri (fun i v -> Hashtbl.add scope' (i + 2) v) closure);
               Stack.push scope cs;
               Stack.push (i + 1) ls;
               helper expr loc scope'
-          | Values.Builtin body ->
-              Stack.push (body args) vs;
+          | _, Values.Builtin body ->
+              Stack.push (body arg) vs;
               helper expr (i + 1) scope
           | _ -> assert false)
-      | Ir3.FnTailCall len -> (
-          let args =
-            List.init len (fun _ -> Stack.pop vs) |> List.rev |> Array.of_list
-          in
-          let fn' = Stack.pop vs in
-          match fn' with
-          | Values.Fn (closure, loc) ->
+      | Ir3.FnTailCall -> (
+          let arg = Stack.pop vs in
+          let fn = Stack.pop vs in
+          match (arg, fn) with
+          | _, Values.Fn (closure, loc) ->
               let scope' = Hashtbl.create 0 in
-              let () = Hashtbl.add scope' 0 fn' in
-              Array.iteri (fun i arg -> Hashtbl.add scope' (i + 1) arg) args;
-              Array.iteri
-                (fun i v -> Hashtbl.add scope' (len + i + 1) v)
-                closure;
+              (match arg with
+              | Values.Tuple args ->
+                  let len = List.length args in
+                  let () = Hashtbl.add scope' 0 fn in
+                  List.iteri (fun i arg -> Hashtbl.add scope' (i + 1) arg) args;
+                  Array.iteri
+                    (fun i v -> Hashtbl.add scope' (len + i + 1) v)
+                    closure
+              | _ ->
+                  let () = Hashtbl.add scope' 0 fn in
+                  Hashtbl.add scope' 1 arg;
+                  Array.iteri (fun i v -> Hashtbl.add scope' (i + 2) v) closure);
               helper expr loc scope'
-          | Values.Builtin body ->
-              Stack.push (body args) vs;
+          | _, Values.Builtin body ->
+              Stack.push (body arg) vs;
               helper expr (i + 1) scope
-          | _ ->
-              Debug.print_value fn' 0;
-              assert false)
+          | _ -> assert false)
       (* decs *)
       | Ir3.Bind id ->
           let v = Stack.pop vs in
           Hashtbl.add scope id v;
+          Stack.push Values.Void vs;
           helper expr (i + 1) scope
       (* skip if true *)
       | Ir3.If -> (

@@ -6,6 +6,7 @@ type ir3 =
   | Name of int
   | Bool of bool
   | Void
+  | Pop
   (* arith *)
   (* int *)
   | INeg
@@ -50,16 +51,16 @@ type ir3 =
   (* lists *)
   | List of int
   | At
+  (* tuples *)
+  | Tuple of int
   (* function *)
   (* params, closure captures, body size *)
   | FnVal of int * int array * int
-  | FnCall of int
-  | FnTailCall of int
+  | FnCall
+  | FnTailCall
   (* decs *)
   | Bind of int
   (* skip if true *)
   | If
   | Jmp of int
   | JmpBck
-  (* stack *)
-  | Pop

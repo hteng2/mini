@@ -1,3 +1,4 @@
+(* IR-2 - Typed SSA form *)
 type e =
   (* atoms *)
   | Int of int
@@ -50,10 +51,12 @@ type e =
   (* lists *)
   | List of expr array
   | At of expr * expr
+  (* tuple *)
+  | Tuple of expr list
   (* function *)
   | FnVal of int * int list * expr
-  | FnCall of expr * expr list
-  | FnTailCall of expr * expr list
+  | FnCall of expr * expr
+  | FnTailCall of expr * expr
   (* decs *)
   | Bind of int * expr
   | If of expr * expr * expr
@@ -63,4 +66,4 @@ type e =
   | Do of expr
   | Noop
 
-and expr = (e * Types.t) Loc.spanned
+and expr = e Loc.spanned

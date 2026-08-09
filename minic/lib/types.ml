@@ -1,4 +1,12 @@
-type t = Int | Float | Bool | Char | Void | List of t | Fn of t * t list
+type t =
+  | Int
+  | Float
+  | Bool
+  | Char
+  | Void
+  | List of t
+  | Fn of t * t
+  | Tuple of t list
 
 let rec t_to_str (t : t) : string =
   match t with
@@ -8,6 +16,6 @@ let rec t_to_str (t : t) : string =
   | Char -> "char"
   | Void -> "void"
   | List t' -> t_to_str t' ^ "[]"
-  | Fn (t, ts) ->
-      let args = String.concat ", " (List.map t_to_str ts) in
-      Printf.sprintf "(%s) -> %s" args (t_to_str t)
+  | Fn (t1, t2) -> Printf.sprintf "%s -> %s" (t_to_str t1) (t_to_str t2)
+  | Tuple ts ->
+      Printf.sprintf "(%s)" (String.concat ", " (List.map t_to_str ts))

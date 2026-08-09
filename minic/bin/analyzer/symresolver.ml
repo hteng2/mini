@@ -185,6 +185,18 @@ let rec resolve_expr ({ v; span } : Ast.expr) (scope : (string, int) Hashtbl.t)
         resolve_expr e2 scope closure scopes id
       in
       { v = Ir1.At (expr1', expr2'); span }
+  | Ast.Tuple es ->
+      let rec infer_list es es_acc =
+        match es with
+        | [] -> es_acc
+        | e :: es' ->
+            let ({ v = e' } as expr1' : Ir1.expr) =
+              resolve_expr e scope closure scopes id
+            in
+            infer_list es' (expr1' :: es_acc)
+      in
+      let es' = infer_list es [] in
+      { v = Ir1.Tuple (List.rev es'); span }
   | Ast.FnVal (ps, t, body) ->
       let scope' = Hashtbl.create 0 in
       let closure' = Hashtbl.create 0 in
@@ -211,20 +223,10 @@ let rec resolve_expr ({ v; span } : Ast.expr) (scope : (string, int) Hashtbl.t)
           closure' []
       in
       { v = Ir1.FnVal (ps', closure'', t, self, body'); span }
-  | Ast.FnCall (fn, args) ->
-      let ({ v = fn' } as expr' : Ir1.expr) =
-        resolve_expr fn scope closure scopes id
-      in
-      let args' =
-        args
-        |> List.fold_left
-             (fun acc arg ->
-               let arg' = resolve_expr arg scope closure scopes id in
-               arg' :: acc)
-             []
-        |> List.rev
-      in
-      { v = Ir1.FnCall (expr', args'); span }
+  | Ast.FnCall (fn, arg) ->
+      let fn' = resolve_expr fn scope closure scopes id in
+      let arg' = resolve_expr arg scope closure scopes id in
+      { v = Ir1.FnCall (fn', arg'); span }
   | Ast.Bind (name, expr) ->
       let ({ v = e' } as expr' : Ir1.expr) =
         resolve_expr expr scope closure scopes id
@@ -376,6 +378,9 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
       let ({ v = e1' } as expr1' : Ir1.expr) = simplify_expr e1 mapping id in
       let ({ v = e2' } as expr2' : Ir1.expr) = simplify_expr e2 mapping id in
       { v = Ir1.At (expr1', expr2'); span }
+  | Ir1.Tuple es ->
+      let es' = List.map (fun e -> simplify_expr e mapping id) es in
+      { v = Ir1.Tuple es'; span }
   | Ir1.FnVal (ps, closure, t, self, body) ->
       let mapping' = Hashtbl.create 0 in
       let id' = ref 0 in
@@ -402,18 +407,10 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
         closure;
       let body' = simplify_expr body mapping' id' in
       { v = Ir1.FnVal (ps', closure', t, self', body'); span }
-  | Ir1.FnCall (fn, args) ->
-      let ({ v = fn' } as expr' : Ir1.expr) = simplify_expr fn mapping id in
-      let args' =
-        args
-        |> List.fold_left
-             (fun acc arg ->
-               let arg' = simplify_expr arg mapping id in
-               arg' :: acc)
-             []
-        |> List.rev
-      in
-      { v = Ir1.FnCall (expr', args'); span }
+  | Ir1.FnCall (fn, arg) ->
+      let fn' = simplify_expr fn mapping id in
+      let arg' = simplify_expr arg mapping id in
+      { v = Ir1.FnCall (fn', arg'); span }
   | Ir1.Bind (name, expr) ->
       let ({ v = e' } as expr' : Ir1.expr) = simplify_expr expr mapping id in
       let i = !id in

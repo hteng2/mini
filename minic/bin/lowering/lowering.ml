@@ -23,8 +23,8 @@ let rec visit_es (ds : Ir2.expr Array.t) k =
 
 and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
   let q = Queue.create () in
-  let rec helper ({ v = expr, _; span } : Ir2.expr) (k : unit -> 'a) =
-    match expr with
+  let rec helper (expr : Ir2.expr) (k : unit -> 'a) =
+    match expr.v with
     | Ir2.Int n -> Queue.add (Ir3.Int n) q |> k
     | Ir2.Float n -> Queue.add (Ir3.Float n) q |> k
     | Ir2.Char c -> Queue.add (Ir3.Char c) q |> k
@@ -100,6 +100,14 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
         h es 0 (fun () -> Queue.add (Ir3.List len) q |> k)
     | Ir2.At (e1, e2) ->
         helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.At q |> k))
+    | Ir2.Tuple es ->
+        let len = List.length es in
+        let rec h es k =
+          match es with
+          | [] -> () |> k
+          | e :: es' -> helper e (fun () -> h es' k)
+        in
+        h es (fun () -> Queue.add (Ir3.Tuple len) q |> k)
     | Ir2.FnVal (ps, c, body) ->
         flatten_expr body (fun body' ->
             Queue.add
@@ -108,24 +116,11 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
             Queue.transfer body' q;
             Queue.add Ir3.JmpBck q;
             () |> k)
-    | Ir2.FnCall (fn, args) ->
+    | Ir2.FnCall (fn, arg) ->
+        helper fn (fun () -> helper arg (fun () -> Queue.add Ir3.FnCall q |> k))
+    | Ir2.FnTailCall (fn, arg) ->
         helper fn (fun () ->
-            let len = List.length args in
-            let rec h args k =
-              match args with
-              | [] -> () |> k
-              | arg :: args' -> helper arg (fun () -> h args' k)
-            in
-            h args (fun () -> Queue.add (Ir3.FnCall len) q |> k))
-    | Ir2.FnTailCall (fn, args) ->
-        helper fn (fun () ->
-            let len = List.length args in
-            let rec h args k =
-              match args with
-              | [] -> () |> k
-              | arg :: args' -> helper arg (fun () -> h args' k)
-            in
-            h args (fun () -> Queue.add (Ir3.FnTailCall len) q |> k))
+            helper arg (fun () -> Queue.add Ir3.FnTailCall q |> k))
     | Ir2.Bind (name, expr) ->
         flatten_expr expr (fun expr' ->
             Queue.transfer expr' q;

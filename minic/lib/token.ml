@@ -16,6 +16,8 @@ type token =
   | Rbrace
   | Comma
   | Semicolon
+  (* types *)
+  | To
   (* ordered comparison *)
   | Eq
   | Neq

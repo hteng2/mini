@@ -7,5 +7,6 @@ type value =
   | Char of char
   | Void
   | List of value array
+  | Tuple of value list
   | Fn of value array * int
-  | Builtin of (value array -> value)
+  | Builtin of (value -> value)

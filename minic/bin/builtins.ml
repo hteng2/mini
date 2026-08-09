@@ -4,18 +4,18 @@ type builtinFn = {
   name : string;
   fnType : Types.t;
   pure : bool;
-  def : Values.value array -> Values.value;
+  def : Values.value -> Values.value;
 }
 
 let builtins : builtinFn list =
   [
     {
       name = "print";
-      fnType = Types.Fn (Types.Void, [ Types.List Types.Char ]);
+      fnType = Types.Fn (Types.List Types.Char, Types.Void);
       pure = false;
       def =
         (fun s ->
-          match s.(0) with
+          match s with
           | Values.List s ->
               Array.iter
                 (fun c ->
@@ -29,11 +29,11 @@ let builtins : builtinFn list =
     };
     {
       name = "println";
-      fnType = Types.Fn (Types.Void, [ Types.List Types.Char ]);
+      fnType = Types.Fn (Types.List Types.Char, Types.Void);
       pure = false;
       def =
         (fun s ->
-          match s.(0) with
+          match s with
           | Values.List s ->
               Array.iter
                 (fun c ->
@@ -48,7 +48,7 @@ let builtins : builtinFn list =
     };
     {
       name = "readline";
-      fnType = Types.Fn (Types.List Types.Char, []);
+      fnType = Types.Fn (Types.Void, Types.List Types.Char);
       pure = false;
       def =
         (fun _ ->
@@ -59,11 +59,11 @@ let builtins : builtinFn list =
     };
     {
       name = "itoa";
-      fnType = Types.Fn (Types.List Types.Char, [ Types.Int ]);
+      fnType = Types.Fn (Types.Int, Types.List Types.Char);
       pure = true;
       def =
         (fun i ->
-          match i.(0) with
+          match i with
           | Values.Int i ->
               let str =
                 Int.to_string i |> String.to_seq |> List.of_seq
@@ -75,11 +75,11 @@ let builtins : builtinFn list =
     };
     {
       name = "ftoa";
-      fnType = Types.Fn (Types.List Types.Char, [ Types.Float ]);
+      fnType = Types.Fn (Types.Float, Types.List Types.Char);
       pure = true;
       def =
         (fun i ->
-          match i.(0) with
+          match i with
           | Values.Float n ->
               let str =
                 Float.to_string n |> String.to_seq |> List.of_seq
@@ -91,31 +91,31 @@ let builtins : builtinFn list =
     };
     {
       name = "ftoi";
-      fnType = Types.Fn (Types.Int, [ Types.Float ]);
+      fnType = Types.Fn (Types.Float, Types.Int);
       pure = true;
       def =
         (fun i ->
-          match i.(0) with
+          match i with
           | Values.Float n -> Values.Int (Float.to_int n)
           | _ -> assert false);
     };
     {
       name = "itof";
-      fnType = Types.Fn (Types.Float, [ Types.Int ]);
+      fnType = Types.Fn (Types.Int, Types.Float);
       pure = true;
       def =
         (fun i ->
-          match i.(0) with
+          match i with
           | Values.Int n -> Values.Float (Float.of_int n)
           | _ -> assert false);
     };
     {
       name = "atoi";
-      fnType = Types.Fn (Types.Int, [ Types.List Types.Char ]);
+      fnType = Types.Fn (Types.List Types.Char, Types.Int);
       pure = true;
       def =
         (fun s ->
-          match s.(0) with
+          match s with
           | Values.List s -> (
               match
                 s
@@ -129,7 +129,7 @@ let builtins : builtinFn list =
     };
     {
       name = "rand";
-      fnType = Types.Fn (Types.Float, []);
+      fnType = Types.Fn (Types.Void, Types.Float);
       pure = false;
       def =
         (fun _ ->

@@ -1,7 +1,8 @@
 type mt =
   | MtBase of string
   | MtList of mini_type
-  | MtFn of mini_type * mini_type list
+  | MtFn of mini_type * mini_type
+  | MtTup of mini_type list
 
 and mini_type = mt Loc.spanned
 
@@ -41,9 +42,11 @@ type e =
   (* lists *)
   | List of expr list
   | At of expr * expr
+  (* tuples *)
+  | Tuple of expr list
   (* function *)
   | FnVal of param list * mini_type * expr
-  | FnCall of expr * expr list
+  | FnCall of expr * expr
   (* decs *)
   | Bind of string * expr
   | If of expr * expr * expr

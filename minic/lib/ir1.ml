@@ -1,3 +1,4 @@
+(* IR-1 - SSA form *)
 type e =
   (* atoms *)
   | Int of int
@@ -30,9 +31,11 @@ type e =
   (* lists *)
   | List of expr list
   | At of expr * expr
+  (* tuple *)
+  | Tuple of expr list
   (* function *)
   | FnVal of (int * Ast.mini_type) list * int list * Ast.mini_type * int * expr
-  | FnCall of expr * expr list
+  | FnCall of expr * expr
   (* decs *)
   | Bind of int * expr
   | If of expr * expr * expr

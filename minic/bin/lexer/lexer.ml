@@ -2,7 +2,7 @@ open Minic_lib
 
 let n2t n =
   match n with
-  | "let" -> Some Token.Bind
+  | "bind" -> Some Token.Bind
   | "true" -> Some Token.True
   | "false" -> Some Token.False
   | "if" -> Some Token.If
@@ -181,7 +181,7 @@ and t_op src sn (start, head) =
       | '>' -> lex_2 src' span Token.Gt '=' Token.Ge
       | '<' -> lex_2 src' span Token.Lt '=' Token.Le
       | '+' -> Stream.Head ({ v = Token.Add; span }, t src' sn head)
-      | '-' -> Stream.Head ({ v = Token.Sub; span }, t src' sn head)
+      | '-' -> lex_2 src' span Token.Sub '>' Token.To
       | '*' -> Stream.Head ({ v = Token.Mul; span }, t src' sn head)
       | '/' -> Stream.Head ({ v = Token.Div; span }, t src' sn head)
       | '%' -> Stream.Head ({ v = Token.Mod; span }, t src' sn head)

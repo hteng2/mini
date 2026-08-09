@@ -66,8 +66,10 @@ let analyze ast =
       exit 0
 
 let print_usage () =
-  print_endline "usage: minic i <file>";
-  print_endline "       minic c <file> <output>"
+  print_endline "usage: minic <flag> <file>";
+  print_endline "  flags:";
+  print_endline "    run   - performs compiler checks then runs the program";
+  print_endline "    build - generates a bytecode file runnable with minir"
 
 let time (start, stop, _) name f =
   start name;
@@ -78,7 +80,7 @@ let time (start, stop, _) name f =
 let () =
   let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
   match Sys.argv.(1) with
-  | "i" ->
+  | "run" ->
       if Array.length Sys.argv <> 3 then print_usage ();
       parse_and_import absolute_path (H.create 0)
       |> analyze
@@ -90,8 +92,8 @@ let () =
         Debug.print_ir ir 0;
         ir) *)
       |> Lowering.run
-      (* |> (fun bc ->
-        Debug.print_bc bc 0;
-        bc) *)
+      |> (fun ir3 ->
+      Debug.print_ir3 ir3;
+      ir3)
       |> Eval.run
   | _ -> print_usage ()

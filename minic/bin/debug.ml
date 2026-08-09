@@ -25,6 +25,7 @@ let t2s t =
   | Token.Rbrace -> "Rbrace\t"
   | Token.Comma -> "Comma\t"
   | Token.Semicolon -> "Semicolon\t"
+  | Token.To -> "To\t"
   | Token.Eq -> "Eq\t"
   | Token.Neq -> "Neq\t"
   | Token.Gt -> "Gt\t"
@@ -149,15 +150,18 @@ and print_expr (expr : Ast.expr) lvl : unit =
       Printf.printf "at\n";
       print_expr e1 (lvl + 1);
       print_expr e2 (lvl + 1)
+  | Ast.Tuple es ->
+      Printf.printf "tuple\n";
+      List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
   | Ast.FnVal (ps, t, body) ->
       Printf.printf "fnval\n";
       List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
       print_type t (lvl + 1);
       print_expr body (lvl + 1)
-  | Ast.FnCall (e, es) ->
+  | Ast.FnCall (e1, e2) ->
       Printf.printf "fncall\n";
-      print_expr e (lvl + 1);
-      List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
+      print_expr e1 (lvl + 1);
+      print_expr e2 (lvl + 1)
   | Ast.Bind (n, e) ->
       Printf.printf "let : name = %s\n" n;
       print_expr e (lvl + 1)
@@ -185,18 +189,20 @@ and print_type t lvl =
   | Ast.MtList t' ->
       Printf.printf "list\n";
       print_type t' (lvl + 1)
-  | Ast.MtFn (t', ts) ->
+  | Ast.MtFn (t1, t2) ->
       Printf.printf "fn\n";
-      print_type t' (lvl + 1);
+      print_type t1 (lvl + 1);
+      print_type t2 (lvl + 1)
+  | Ast.MtTup ts ->
+      Printf.printf "tuple\n";
       List.iter (fun t -> print_type t (lvl + 1)) ts
 
 let rec print_ir (ds : Ir2.expr Array.t) lvl =
   Array.iter (fun expr -> print_e expr lvl) ds
 
 and print_e (expr : Ir2.expr) lvl : unit =
-  let ({ v = e, _; _ } : Ir2.expr) = expr in
   print_string (String.make (2 * lvl) ' ');
-  match e with
+  match expr.v with
   | Ir2.Int n -> Printf.printf "%d\n" n
   | Ir2.Float n -> Printf.printf "%f\n" n
   | Ir2.Char c -> Printf.printf "%c\n" c
@@ -335,18 +341,21 @@ and print_e (expr : Ir2.expr) lvl : unit =
       Printf.printf "listat\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
+  | Ir2.Tuple es ->
+      Printf.printf "tuple\n";
+      List.iter (fun e -> print_e e (lvl + 1)) es
   | Ir2.FnVal (ps, c, body) ->
       Printf.printf "fnval %d\n" ps;
       List.iter (fun name -> print_closure name (lvl + 1)) c;
       print_e body (lvl + 1)
-  | Ir2.FnCall (e, es) ->
+  | Ir2.FnCall (fn, arg) ->
       Printf.printf "fncall\n";
-      print_e e (lvl + 1);
-      List.iter (fun e -> print_e e (lvl + 1)) es
-  | Ir2.FnTailCall (e, es) ->
+      print_e fn (lvl + 1);
+      print_e arg (lvl + 1)
+  | Ir2.FnTailCall (fn, arg) ->
       Printf.printf "fntailcall\n";
-      print_e e (lvl + 1);
-      List.iter (fun e -> print_e e (lvl + 1)) es
+      print_e fn (lvl + 1);
+      print_e arg (lvl + 1)
   | Ir2.Bind (n, e) ->
       Printf.printf "let : name = %d\n" n;
       print_e e (lvl + 1)
@@ -371,72 +380,64 @@ and print_closure name lvl =
   print_string (String.make (2 * lvl) ' ');
   Printf.printf "closure %d\n" name
 
-let rec print_bc p lvl = Array.iteri (fun i d -> print_e i d lvl) p
-
-and print_e i expr lvl : unit =
-  Printf.printf "%-5d" i;
-  print_string (String.make (2 * lvl) ' ');
-  match expr with
-  | Ir3.Int n -> Printf.printf "%d\n" n
-  | Ir3.Float n -> Printf.printf "%f\n" n
-  | Ir3.Char c -> Printf.printf "%c\n" c
-  | Ir3.Name n -> Printf.printf "name %d\n" n
-  | Ir3.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
-  | Ir3.Void -> Printf.printf "void\n"
-  | Ir3.INeg -> Printf.printf "ineg\n"
-  | Ir3.IAdd -> Printf.printf "iadd\n"
-  | Ir3.ISub -> Printf.printf "isub\n"
-  | Ir3.IMul -> Printf.printf "imul\n"
-  | Ir3.IDiv -> Printf.printf "idiv\n"
-  | Ir3.IMod -> Printf.printf "imod\n"
-  | Ir3.FNeg -> Printf.printf "fneg\n"
-  | Ir3.FAdd -> Printf.printf "fadd\n"
-  | Ir3.FSub -> Printf.printf "fsub\n"
-  | Ir3.FMul -> Printf.printf "fmul\n"
-  | Ir3.FDiv -> Printf.printf "fdiv\n"
-  | Ir3.Not -> Printf.printf "not\n"
-  | Ir3.And -> Printf.printf "and\n"
-  | Ir3.Or -> Printf.printf "or\n"
-  | Ir3.Xor -> Printf.printf "xor\n"
-  | Ir3.IEq -> Printf.printf "ieq\n"
-  | Ir3.INeq -> Printf.printf "ineq\n"
-  | Ir3.IGt -> Printf.printf "igt\n"
-  | Ir3.IGe -> Printf.printf "ige\n"
-  | Ir3.ILt -> Printf.printf "ilt\n"
-  | Ir3.ILe -> Printf.printf "ile\n"
-  | Ir3.FGt -> Printf.printf "fgt\n"
-  | Ir3.FGe -> Printf.printf "fge\n"
-  | Ir3.FLt -> Printf.printf "flt\n"
-  | Ir3.FLe -> Printf.printf "fle\n"
-  | Ir3.CEq -> Printf.printf "ceq\n"
-  | Ir3.CNeq -> Printf.printf "cneq\n"
-  | Ir3.CGt -> Printf.printf "cgt\n"
-  | Ir3.CGe -> Printf.printf "cge\n"
-  | Ir3.CLt -> Printf.printf "clt\n"
-  | Ir3.CLe -> Printf.printf "cle\n"
-  | Ir3.BEq -> Printf.printf "beq\n"
-  | Ir3.List len -> Printf.printf "list %d\n" len
-  | Ir3.At -> Printf.printf "at\n"
-  | Ir3.FnVal (ps, c, len) ->
-      Printf.printf "fnval (%d) %d\n" ps len;
-      Array.iter (fun name -> print_closure name (lvl + 1)) c
-  | Ir3.FnCall len -> Printf.printf "fncall %d\n" len
-  | Ir3.FnTailCall len -> Printf.printf "fntailcall %d\n" len
-  | Ir3.Bind v -> Printf.printf "let %d\n" v
-  | Ir3.If -> Printf.printf "if\n"
-  | Ir3.Jmp n -> Printf.printf "jmp %d\n" n
-  | Ir3.JmpBck -> Printf.printf "jmpbck\n"
-  | Ir3.Pop -> Printf.printf "pop\n"
-
-and print_param param lvl =
-  print_string (String.make (2 * lvl) ' ');
-  let name = param in
-  Printf.printf "param %d\n" name
-
-and print_closure param lvl =
-  print_string (String.make (2 * lvl) ' ');
-  let name = param in
-  Printf.printf "closure %d\n" name
+let print_ir3 (ds : Ir3.ir3 Array.t) =
+  Array.iteri
+    (fun i instr ->
+      Printf.printf "%-5d| " i;
+      match instr with
+      | Ir3.Int n -> Printf.printf "int %d\n" n
+      | Ir3.Float n -> Printf.printf "float %f\n" n
+      | Ir3.Char c -> Printf.printf "char %c\n" c
+      | Ir3.Name n -> Printf.printf "name %d\n" n
+      | Ir3.Bool b -> Printf.printf "bool %b\n" b
+      | Ir3.Void -> Printf.printf "void\n"
+      | Ir3.Pop -> Printf.printf "pop\n"
+      | Ir3.INeg -> Printf.printf "ineg\n"
+      | Ir3.IAdd -> Printf.printf "iadd\n"
+      | Ir3.ISub -> Printf.printf "isub\n"
+      | Ir3.IMul -> Printf.printf "imul\n"
+      | Ir3.IDiv -> Printf.printf "idiv\n"
+      | Ir3.IMod -> Printf.printf "imod\n"
+      | Ir3.FNeg -> Printf.printf "fneg\n"
+      | Ir3.FAdd -> Printf.printf "fadd\n"
+      | Ir3.FSub -> Printf.printf "fsub\n"
+      | Ir3.FMul -> Printf.printf "fmul\n"
+      | Ir3.FDiv -> Printf.printf "fdiv\n"
+      | Ir3.Not -> Printf.printf "not\n"
+      | Ir3.And -> Printf.printf "and\n"
+      | Ir3.Or -> Printf.printf "or\n"
+      | Ir3.Xor -> Printf.printf "xor\n"
+      | Ir3.IEq -> Printf.printf "ieq\n"
+      | Ir3.INeq -> Printf.printf "ineq\n"
+      | Ir3.IGt -> Printf.printf "igt\n"
+      | Ir3.IGe -> Printf.printf "ige\n"
+      | Ir3.ILt -> Printf.printf "ilt\n"
+      | Ir3.ILe -> Printf.printf "ile\n"
+      | Ir3.FGt -> Printf.printf "fgt\n"
+      | Ir3.FGe -> Printf.printf "fge\n"
+      | Ir3.FLt -> Printf.printf "flt\n"
+      | Ir3.FLe -> Printf.printf "fle\n"
+      | Ir3.CEq -> Printf.printf "ceq\n"
+      | Ir3.CNeq -> Printf.printf "cneq\n"
+      | Ir3.CGt -> Printf.printf "cgt\n"
+      | Ir3.CGe -> Printf.printf "cge\n"
+      | Ir3.CLt -> Printf.printf "clt\n"
+      | Ir3.CLe -> Printf.printf "cle\n"
+      | Ir3.BEq -> Printf.printf "beq\n"
+      | Ir3.List n -> Printf.printf "list %d\n" n
+      | Ir3.At -> Printf.printf "at\n"
+      | Ir3.Tuple n -> Printf.printf "tuple %d\n" n
+      | Ir3.FnVal (ps, c, len) ->
+          Printf.printf "fnval ps=%d body=%d caps=[" ps len;
+          Array.iter (fun name -> Printf.printf "%d " name) c;
+          Printf.printf "]\n"
+      | Ir3.FnCall -> Printf.printf "fncall\n"
+      | Ir3.FnTailCall -> Printf.printf "fntailcall\n"
+      | Ir3.Bind n -> Printf.printf "bind %d\n" n
+      | Ir3.If -> Printf.printf "if\n"
+      | Ir3.Jmp n -> Printf.printf "jmp %d\n" n
+      | Ir3.JmpBck -> Printf.printf "jmpbck\n")
+    ds
 
 let rec print_type t lvl =
   print_string (String.make (2 * lvl) ' ');
@@ -449,9 +450,12 @@ let rec print_type t lvl =
   | Types.List t' ->
       print_endline "list";
       print_type t' (lvl + 1)
-  | Types.Fn (t, ts) ->
+  | Types.Fn (t1, t2) ->
       print_endline "fn";
-      print_type t (lvl + 1);
+      print_type t1 (lvl + 1);
+      print_type t2 (lvl + 1)
+  | Types.Tuple ts ->
+      print_endline "tuple";
       List.iter (fun t -> print_type t (lvl + 1)) ts
 
 (* recursively print a value, indented by lvl *)
@@ -466,6 +470,9 @@ let rec print_value (v : Values.value) lvl : unit =
   | Values.List a ->
       Printf.printf "%slist [%d]\n" indent (Array.length a);
       Array.iter (fun v -> print_value v (lvl + 1)) a
+  | Values.Tuple ts ->
+      Printf.printf "%stuple [%d]\n" indent (List.length ts);
+      List.iter (fun v -> print_value v (lvl + 1)) ts
   | Values.Fn (c, loc) ->
       Printf.printf "%sfn @ %d\n" indent loc;
       Array.iteri
