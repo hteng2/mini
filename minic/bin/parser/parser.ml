@@ -395,11 +395,17 @@ and advance_expr ts min_bp (left : Ast.expr) : Token.t Stream.t * Ast.expr =
         { v = Ast.At (left, inner); span = (sn, start_loc, end_loc) }
   | Stream.Head (({ v; span } as token), ts') -> (
       match bp v with
-      | Some (l, r) when min_bp < l -> (
-          let ts'', right = bind_expr r { v = "right expression"; span } ts' in
-          match combine left token right with
-          | None -> assert false
-          | Some left' -> advance_expr ts'' min_bp left')
+      | Some (l, r) -> (
+          if min_bp >= l then
+            let old_ts = fun () -> front in
+            (old_ts, left)
+          else
+            let ts'', right =
+              bind_expr r { v = "right expression"; span } ts'
+            in
+            match combine left token right with
+            | None -> assert false
+            | Some left' -> advance_expr ts'' min_bp left')
       | _ ->
           let old_ts = fun () -> front in
           if min_bp < prefix_bp then

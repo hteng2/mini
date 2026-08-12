@@ -45,6 +45,9 @@ let rec parse_and_import file (files : hashset) : Ast.expr Queue.t =
           Queue.transfer ast2 ast;
           ast2)
         ast imports'
+      (* |> fun ast ->
+      Debug.print_ast ast 0;
+      ast *)
     with
     | Errors.Expected { v; span = sn, (a, b), (c, d) } ->
         Printf.printf "error: %s %d:%d-%d:%d - expected %s\n" sn a b c d v;
