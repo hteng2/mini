@@ -66,10 +66,12 @@ let analyze ast =
       exit 0
 
 let print_usage () =
-  print_endline "usage: minic <flag> <file>";
-  print_endline "  flags:";
-  print_endline "    run   - performs compiler checks then runs the program";
-  print_endline "    build - generates a bytecode file runnable with minir"
+  print_endline "usage: minic <subcommand>";
+  print_endline "  subcommands:";
+  print_endline
+    "    run   <src>       - performs compiler checks then runs the program";
+  print_endline
+    "    build <src> <out> - generates a bytecode file runnable with minir"
 
 let time (start, stop, _) name f =
   start name;
@@ -81,7 +83,9 @@ let () =
   let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
   match Sys.argv.(1) with
   | "run" ->
-      if Array.length Sys.argv <> 3 then print_usage ();
+      if Array.length Sys.argv <> 3 then (
+        print_usage ();
+        exit 0);
       parse_and_import absolute_path (H.create 0)
       |> analyze
       (* |> (fun ir ->
@@ -92,12 +96,14 @@ let () =
       Debug.print_ir (fst ir) 0;
       ir) *)
       |> Lowering.run
-      |> (fun (ir3, sc) ->
+      (* |> (fun (ir3, sc) ->
       Debug.print_ir3 ir3;
-      (ir3, sc))
+      (ir3, sc)) *)
       |> Eval.run
   | "build" ->
-      if Array.length Sys.argv <> 4 then print_usage ();
+      if Array.length Sys.argv <> 4 then (
+        print_usage ();
+        exit 0);
       parse_and_import absolute_path (H.create 0)
       |> analyze |> Optimizer.run |> Lowering.run
       |> Codegen.run Sys.argv.(3)
