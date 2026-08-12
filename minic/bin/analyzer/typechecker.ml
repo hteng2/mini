@@ -24,6 +24,33 @@ let rec translate_type (t : Ast.mini_type) =
   | Ast.MtFn (t1, t2) -> Types.Fn (translate_type t1, translate_type t2)
   | Ast.MtTup ts -> Types.Tuple (List.map translate_type ts)
 
+(* check param type *)
+let rec check_param (p : Ir1.param) (scope : (int, Types.t) Hashtbl.t) :
+    Types.t * Ir2.pattern =
+  match p with
+  | Ir1.PrmUnit -> (Types.Void, Ir2.PtrnUnit)
+  | Ir1.PrmLeaf (i, t) ->
+      let t' = translate_type t in
+      Hashtbl.add scope i t';
+      (t', Ir2.PtrnLeaf i)
+  | Ir1.PrmTuple ps ->
+      let ts, ps' =
+        ps |> List.map (fun p -> check_param p scope) |> List.split
+      in
+      (Types.Tuple ts, Ir2.PtrnTuple ps')
+
+let rec match_ptrn_type (ptrn : Ir1.pattern) span (t : Types.t) scope :
+    Ir2.pattern =
+  match (ptrn, t) with
+  | Ir1.PtrnUnit, Types.Void -> Ir2.PtrnUnit
+  | Ir1.PtrnLeaf i, t ->
+      Hashtbl.add scope i t;
+      Ir2.PtrnLeaf i
+  | Ir1.PtrnTuple ps, Types.Tuple ts when List.length ps = List.length ts ->
+      let ps' = List.map2 (fun p t -> match_ptrn_type p span t scope) ps ts in
+      Ir2.PtrnTuple ps'
+  | _ -> raise (TypeError { v = "could not match pattern to type"; span })
+
 (* apply type induction rules and convert to ops *)
 let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
     chainhead : Ir2.expr * Types.t =
@@ -148,8 +175,6 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
         let e2', t2 = check_expr e2 scope false in
         match (t1, t2) with
         | Types.Int, Types.Int -> ({ v = Ir2.IGe (e1', e2'); span }, Types.Bool)
-        | Types.Float, Types.Float ->
-            ({ v = Ir2.FGe (e1', e2'); span }, Types.Bool)
         | Types.Char, Types.Char ->
             ({ v = Ir2.CGe (e1', e2'); span }, Types.Bool)
         | _ ->
@@ -188,8 +213,6 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
         let e2', t2 = check_expr e2 scope false in
         match (t1, t2) with
         | Types.Int, Types.Int -> ({ v = Ir2.ILe (e1', e2'); span }, Types.Bool)
-        | Types.Float, Types.Float ->
-            ({ v = Ir2.FLe (e1', e2'); span }, Types.Bool)
         | Types.Char, Types.Char ->
             ({ v = Ir2.CLe (e1', e2'); span }, Types.Bool)
         | _ ->
@@ -341,18 +364,9 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
           List.split (List.map (fun e -> check_expr e scope false) es)
         in
         ({ v = Ir2.Tuple es'; span }, Types.Tuple ts)
-    | Ir1.FnVal (ps, closure, rest, self, body) ->
+    | Ir1.FnVal (p, closure, rest, self, symcnt, body) ->
         let scope' = Hashtbl.create 0 in
         let id = ref 1 in
-        let argts =
-          List.map
-            (fun (name, t) ->
-              let t = translate_type t in
-              Hashtbl.add scope' !id t;
-              incr id;
-              t)
-            ps
-        in
         let () =
           List.iter
             (fun name ->
@@ -361,12 +375,8 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
               incr id)
             closure
         in
+        let argt, p' = check_param p scope' in
         let rest' = translate_type rest in
-        let argt =
-          if List.length argts = 0 then Types.Void
-          else if List.length argts = 1 then List.hd argts
-          else Types.Tuple argts
-        in
         let fnt = Types.Fn (argt, rest') in
         let () = Hashtbl.add scope' self fnt in
         let body', bodyt = check_expr body scope' false in
@@ -379,7 +389,7 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
               span = body'.span;
             }
         in
-        ({ v = Ir2.FnVal (List.length argts, closure, body'); span }, fnt)
+        ({ v = Ir2.FnVal (p', closure, symcnt, body'); span }, fnt)
     | Ir1.FnCall (fn, arg) -> (
         let fn', fnt = check_expr fn scope false in
         let arg', argt = check_expr arg scope false in
@@ -404,10 +414,10 @@ let rec check_expr ({ v; span } : Ir1.expr) (scope : (int, Types.t) Hashtbl.t)
                        (Types.t_to_str fnt);
                    span;
                  }))
-    | Ir1.Bind (name, expr) ->
+    | Ir1.Bind (ptrn, expr) ->
         let e', t = check_expr expr scope false in
-        Hashtbl.add scope name t;
-        ({ v = Ir2.Bind (name, e'); span }, Types.Void)
+        let ptrn' = match_ptrn_type ptrn span t scope in
+        ({ v = Ir2.Bind (ptrn', e'); span }, Types.Void)
     | Ir1.If (expr, body, body2) ->
         let e', t = check_expr expr scope false in
         force_type t Types.Bool
@@ -445,10 +455,10 @@ and check_exprs es scopes =
   in
   (acc', Option.get t)
 
-let run es =
+let run (es, sc) =
   let s = Hashtbl.create 0 in
   List.iteri
     (fun i (bfn : Builtins.builtinFn) -> Hashtbl.add s i bfn.fnType)
     Builtins.builtins;
   let es', t = check_exprs es s in
-  es'
+  (es', sc)

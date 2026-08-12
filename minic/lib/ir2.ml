@@ -1,4 +1,6 @@
 (* IR-2 - Typed SSA form *)
+type pattern = PtrnUnit | PtrnLeaf of int | PtrnTuple of pattern list
+
 type e =
   (* atoms *)
   | Int of int
@@ -36,9 +38,7 @@ type e =
   | ILe of expr * expr
   (* float *)
   | FGt of expr * expr
-  | FGe of expr * expr
   | FLt of expr * expr
-  | FLe of expr * expr
   (* char *)
   | CEq of expr * expr
   | CNeq of expr * expr
@@ -54,11 +54,12 @@ type e =
   (* tuple *)
   | Tuple of expr list
   (* function *)
-  | FnVal of int * int list * expr
+  (* closure, symcnt, body *)
+  | FnVal of pattern * int list * int * expr
   | FnCall of expr * expr
   | FnTailCall of expr * expr
   (* decs *)
-  | Bind of int * expr
+  | Bind of pattern * expr
   | If of expr * expr * expr
   (* closure captures, body *)
   | Block of expr Array.t
@@ -67,3 +68,5 @@ type e =
   | Noop
 
 and expr = e Loc.spanned
+
+type program = expr Array.t * int

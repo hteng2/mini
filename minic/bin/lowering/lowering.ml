@@ -10,18 +10,18 @@ let a2q a =
   Array.iter (fun x -> Queue.add x q) a;
   q
 
-let rec visit_es (ds : Ir2.expr Array.t) k =
+let rec gen_exprs (ds : Ir2.expr Array.t) k =
   let q = Queue.create () in
   let rec h i k =
     if i < Array.length ds then
-      flatten_expr ds.(i) (fun d' ->
+      gen_expr ds.(i) (fun d' ->
           Queue.transfer d' q;
           h (i + 1) k)
     else () |> k
   in
   h 0 (fun () -> q |> k)
 
-and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
+and gen_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
   let q = Queue.create () in
   let rec helper (expr : Ir2.expr) (k : unit -> 'a) =
     match expr.v with
@@ -65,12 +65,8 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
         helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.ILe q |> k))
     | Ir2.FGt (e1, e2) ->
         helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.FGt q |> k))
-    | Ir2.FGe (e1, e2) ->
-        helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.FGe q |> k))
     | Ir2.FLt (e1, e2) ->
         helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.FLt q |> k))
-    | Ir2.FLe (e1, e2) ->
-        helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.FLe q |> k))
     | Ir2.CEq (e1, e2) ->
         helper e1 (fun () -> helper e2 (fun () -> Queue.add Ir3.CEq q |> k))
     | Ir2.CNeq (e1, e2) ->
@@ -108,11 +104,17 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
           | e :: es' -> helper e (fun () -> h es' k)
         in
         h es (fun () -> Queue.add (Ir3.Tuple len) q |> k)
-    | Ir2.FnVal (ps, c, body) ->
-        flatten_expr body (fun body' ->
+    | Ir2.FnVal (p, c, symcnt, body) ->
+        let m = Queue.create () in
+        gen_bind p m;
+        gen_expr body (fun body' ->
             Queue.add
-              (Ir3.FnVal (ps, Array.of_list c, Queue.length body' + 1))
+              (Ir3.FnVal
+                 ( Array.of_list c,
+                   symcnt,
+                   Queue.length m + Queue.length body' + 1 ))
               q;
+            Queue.transfer m q;
             Queue.transfer body' q;
             Queue.add Ir3.JmpBck q;
             () |> k)
@@ -121,14 +123,16 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
     | Ir2.FnTailCall (fn, arg) ->
         helper fn (fun () ->
             helper arg (fun () -> Queue.add Ir3.FnTailCall q |> k))
-    | Ir2.Bind (name, expr) ->
-        flatten_expr expr (fun expr' ->
+    | Ir2.Bind (ptrn, expr) ->
+        gen_expr expr (fun expr' ->
             Queue.transfer expr' q;
-            Queue.add (Ir3.Bind name) q |> k)
+            gen_bind ptrn q;
+            Queue.add Ir3.Void q;
+            () |> k)
     | Ir2.If (expr, body1, body2) ->
-        flatten_expr expr (fun expr' ->
-            flatten_expr body1 (fun body1' ->
-                flatten_expr body2 (fun body2' ->
+        gen_expr expr (fun expr' ->
+            gen_expr body1 (fun body1' ->
+                gen_expr body2 (fun body2' ->
                     Queue.transfer expr' q;
                     Queue.add Ir3.If q;
                     Queue.add (Ir3.Jmp (Queue.length body1' + 2)) q;
@@ -136,15 +140,24 @@ and flatten_expr expr (k : Ir3.ir3 Queue.t -> 'a) =
                     Queue.add (Ir3.Jmp (Queue.length body2' + 1)) q;
                     Queue.transfer body2' q;
                     () |> k)))
-    | Ir2.Block es -> visit_es es (fun es' -> Queue.transfer es' q |> k)
+    | Ir2.Block es -> gen_exprs es (fun es' -> Queue.transfer es' q |> k)
     | Ir2.Do expr ->
-        flatten_expr expr (fun expr' ->
+        gen_expr expr (fun expr' ->
             Queue.transfer expr' q;
             Queue.add Ir3.Pop q |> k)
     | Ir2.Noop -> () |> k
   in
   helper expr (fun () -> q |> k)
 
-let run ds =
-  visit_es ds (fun ds' ->
+and gen_bind p q =
+  match p with
+  | Ir2.PtrnUnit -> Queue.add Ir3.Pop q
+  | Ir2.PtrnLeaf i -> Queue.add (Ir3.Bind i) q
+  | Ir2.PtrnTuple ps ->
+      Queue.add Ir3.Destruct q;
+      List.iter (fun p -> gen_bind p q) ps
+
+let run (ds, sc) =
+  gen_exprs ds (fun ds' ->
       Array.init (Queue.length ds') (fun _ -> Queue.take ds'))
+  |> fun ds' -> (ds', sc)

@@ -153,17 +153,15 @@ and print_expr (expr : Ast.expr) lvl : unit =
   | Ast.Tuple es ->
       Printf.printf "tuple\n";
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
-  | Ast.FnVal (ps, t, body) ->
-      Printf.printf "fnval\n";
-      List.fold_left (fun () -> fun p -> print_param p (lvl + 1)) () ps;
-      print_type t (lvl + 1);
+  | Ast.FnVal (p, t, body) ->
+      Printf.printf "fnval (%s) -> %s\n" (param2s p) (mt2s t);
       print_expr body (lvl + 1)
   | Ast.FnCall (e1, e2) ->
       Printf.printf "fncall\n";
       print_expr e1 (lvl + 1);
       print_expr e2 (lvl + 1)
-  | Ast.Bind (n, e) ->
-      Printf.printf "let : name = %s\n" n;
+  | Ast.Bind (p, e) ->
+      Printf.printf "let : name = %s\n" (ptrn2s p);
       print_expr e (lvl + 1)
   | Ast.If (e, ds, ds2) ->
       Printf.printf "if then else\n";
@@ -174,28 +172,36 @@ and print_expr (expr : Ast.expr) lvl : unit =
       Printf.printf "block\n";
       print_ast ds (lvl + 1)
 
-and print_param (param : Ast.param) lvl =
-  print_range param.span;
-  print_string (String.make (2 * lvl) ' ');
-  let name, t = param.v in
-  Printf.printf "param %s\n" name;
-  print_type t (lvl + 1)
+and param2s (param : Ast.param) =
+  match param.v with
+  | Ast.PrmUnit -> "()"
+  | Ast.PrmLeaf (name, mt) -> Printf.sprintf "%s: %s" name (mt2s mt)
+  | Ast.PrmTuple ps ->
+      ps
+      |> List.map (fun t -> param2s t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
 
-and print_type t lvl =
-  print_range t.span;
-  print_string (String.make (2 * lvl) ' ');
+and ptrn2s (ptrn : Ast.pattern) =
+  match ptrn with
+  | Ast.PtrnUnit -> "()"
+  | Ast.PtrnLeaf name -> name
+  | Ast.PtrnTuple ps ->
+      ps
+      |> List.map (fun t -> ptrn2s t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
+
+and mt2s t : string =
   match t.v with
-  | Ast.MtBase s -> Printf.printf "%s\n" s
-  | Ast.MtList t' ->
-      Printf.printf "list\n";
-      print_type t' (lvl + 1)
-  | Ast.MtFn (t1, t2) ->
-      Printf.printf "fn\n";
-      print_type t1 (lvl + 1);
-      print_type t2 (lvl + 1)
+  | Ast.MtBase s -> s
+  | Ast.MtList t' -> Printf.sprintf "%s[]" (mt2s t')
+  | Ast.MtFn (t1, t2) -> Printf.sprintf "%s -> %s" (mt2s t1) (mt2s t2)
   | Ast.MtTup ts ->
-      Printf.printf "tuple\n";
-      List.iter (fun t -> print_type t (lvl + 1)) ts
+      ts
+      |> List.map (fun t -> mt2s t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
 
 let rec print_ir (ds : Ir2.expr Array.t) lvl =
   Array.iter (fun expr -> print_e expr lvl) ds
@@ -294,16 +300,8 @@ and print_e (expr : Ir2.expr) lvl : unit =
       Printf.printf "fgt\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
-  | Ir2.FGe (e1, e2) ->
-      Printf.printf "fge\n";
-      print_e e1 (lvl + 1);
-      print_e e2 (lvl + 1)
   | Ir2.FLt (e1, e2) ->
       Printf.printf "flt\n";
-      print_e e1 (lvl + 1);
-      print_e e2 (lvl + 1)
-  | Ir2.FLe (e1, e2) ->
-      Printf.printf "fle\n";
       print_e e1 (lvl + 1);
       print_e e2 (lvl + 1)
   | Ir2.CEq (e1, e2) ->
@@ -344,8 +342,8 @@ and print_e (expr : Ir2.expr) lvl : unit =
   | Ir2.Tuple es ->
       Printf.printf "tuple\n";
       List.iter (fun e -> print_e e (lvl + 1)) es
-  | Ir2.FnVal (ps, c, body) ->
-      Printf.printf "fnval %d\n" ps;
+  | Ir2.FnVal (p, c, symcnt, body) ->
+      Printf.printf "fnval (%s)\n" (ptrn2s p);
       List.iter (fun name -> print_closure name (lvl + 1)) c;
       print_e body (lvl + 1)
   | Ir2.FnCall (fn, arg) ->
@@ -356,8 +354,8 @@ and print_e (expr : Ir2.expr) lvl : unit =
       Printf.printf "fntailcall\n";
       print_e fn (lvl + 1);
       print_e arg (lvl + 1)
-  | Ir2.Bind (n, e) ->
-      Printf.printf "let : name = %d\n" n;
+  | Ir2.Bind (p, e) ->
+      Printf.printf "bind %s\n" (ptrn2s p);
       print_e e (lvl + 1)
   | Ir2.If (e, e1, e2) ->
       Printf.printf "if\n";
@@ -379,6 +377,144 @@ and print_param name lvl =
 and print_closure name lvl =
   print_string (String.make (2 * lvl) ' ');
   Printf.printf "closure %d\n" name
+
+and ptrn2s p =
+  match p with
+  | Ir2.PtrnUnit -> "()"
+  | Ir2.PtrnLeaf i -> Int.to_string i
+  | Ir2.PtrnTuple ps ->
+      ps
+      |> List.map (fun t -> ptrn2s t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
+
+let rec print_ir1 (ds : Ir1.expr Array.t) lvl =
+  Array.iter (fun expr -> print_e1 expr lvl) ds
+
+and print_e1 (expr : Ir1.expr) lvl : unit =
+  print_string (String.make (2 * lvl) ' ');
+  match expr.v with
+  | Ir1.Int n -> Printf.printf "%d\n" n
+  | Ir1.Float n -> Printf.printf "%f\n" n
+  | Ir1.Char c -> Printf.printf "%c\n" c
+  | Ir1.Str s -> Printf.printf "%s\n" s
+  | Ir1.Name n -> Printf.printf "name %d\n" n
+  | Ir1.Bool b -> Printf.printf "%s\n" (if b then "true" else "false")
+  | Ir1.Void -> Printf.printf "void\n"
+  | Ir1.Neg e ->
+      Printf.printf "neg\n";
+      print_e1 e (lvl + 1)
+  | Ir1.Pos e ->
+      Printf.printf "pos\n";
+      print_e1 e (lvl + 1)
+  | Ir1.Add (e1, e2) ->
+      Printf.printf "add\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Sub (e1, e2) ->
+      Printf.printf "sub\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Mul (e1, e2) ->
+      Printf.printf "mul\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Div (e1, e2) ->
+      Printf.printf "div\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Mod (e1, e2) ->
+      Printf.printf "mod\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Not e ->
+      Printf.printf "not\n";
+      print_e1 e (lvl + 1)
+  | Ir1.And (e1, e2) ->
+      Printf.printf "and\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Or (e1, e2) ->
+      Printf.printf "or\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Xor (e1, e2) ->
+      Printf.printf "xor\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Eq (e1, e2) ->
+      Printf.printf "eq\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Neq (e1, e2) ->
+      Printf.printf "neq\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Gt (e1, e2) ->
+      Printf.printf "gt\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Ge (e1, e2) ->
+      Printf.printf "ge\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Lt (e1, e2) ->
+      Printf.printf "lt\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Le (e1, e2) ->
+      Printf.printf "le\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.List es ->
+      Printf.printf "list\n";
+      List.iter (fun e -> print_e1 e (lvl + 1)) es
+  | Ir1.At (e1, e2) ->
+      Printf.printf "listat\n";
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Tuple es ->
+      Printf.printf "tuple\n";
+      List.iter (fun e -> print_e1 e (lvl + 1)) es
+  | Ir1.FnVal (p, c, _, _, _, body) ->
+      Printf.printf "fnval (%s)\n" (param2s1 p);
+      List.iter (fun name -> print_closure name (lvl + 1)) c;
+      print_e1 body (lvl + 1)
+  | Ir1.FnCall (fn, arg) ->
+      Printf.printf "fncall\n";
+      print_e1 fn (lvl + 1);
+      print_e1 arg (lvl + 1)
+  | Ir1.Bind (p, e) ->
+      Printf.printf "bind %s\n" (ptrn2s1 p);
+      print_e1 e (lvl + 1)
+  | Ir1.If (e, e1, e2) ->
+      Printf.printf "if\n";
+      print_e1 e (lvl + 1);
+      print_e1 e1 (lvl + 1);
+      print_e1 e2 (lvl + 1)
+  | Ir1.Block ds ->
+      Printf.printf "block\n";
+      Array.iter (fun e -> print_e1 e (lvl + 1)) ds
+
+and param2s1 (p : Ir1.param) =
+  match p with
+  | Ir1.PrmUnit -> "()"
+  | Ir1.PrmLeaf (i, t) -> Printf.sprintf "%d: %s" i (mt2s t)
+  | Ir1.PrmTuple ps ->
+      ps
+      |> List.map (fun t -> param2s1 t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
+
+and ptrn2s1 (p : Ir1.pattern) =
+  match p with
+  | Ir1.PtrnUnit -> "()"
+  | Ir1.PtrnLeaf i -> Int.to_string i
+  | Ir1.PtrnTuple ps ->
+      ps
+      |> List.map (fun t -> ptrn2s1 t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
 
 let print_ir3 (ds : Ir3.ir3 Array.t) =
   Array.iteri
@@ -414,9 +550,7 @@ let print_ir3 (ds : Ir3.ir3 Array.t) =
       | Ir3.ILt -> Printf.printf "ilt\n"
       | Ir3.ILe -> Printf.printf "ile\n"
       | Ir3.FGt -> Printf.printf "fgt\n"
-      | Ir3.FGe -> Printf.printf "fge\n"
       | Ir3.FLt -> Printf.printf "flt\n"
-      | Ir3.FLe -> Printf.printf "fle\n"
       | Ir3.CEq -> Printf.printf "ceq\n"
       | Ir3.CNeq -> Printf.printf "cneq\n"
       | Ir3.CGt -> Printf.printf "cgt\n"
@@ -427,8 +561,9 @@ let print_ir3 (ds : Ir3.ir3 Array.t) =
       | Ir3.List n -> Printf.printf "list %d\n" n
       | Ir3.At -> Printf.printf "at\n"
       | Ir3.Tuple n -> Printf.printf "tuple %d\n" n
-      | Ir3.FnVal (ps, c, len) ->
-          Printf.printf "fnval ps=%d body=%d caps=[" ps len;
+      | Ir3.Destruct -> Printf.printf "destruct \n"
+      | Ir3.FnVal (c, symcnt, len) ->
+          Printf.printf "fnval body=%d caps=[" len;
           Array.iter (fun name -> Printf.printf "%d " name) c;
           Printf.printf "]\n"
       | Ir3.FnCall -> Printf.printf "fncall\n"
@@ -462,6 +597,7 @@ let rec print_type t lvl =
 let rec print_value (v : Values.value) lvl : unit =
   let indent = String.make (2 * lvl) ' ' in
   match v with
+  | Values.Nil -> Printf.printf "%suninitialized\n" indent
   | Values.Int n -> Printf.printf "%sint %d\n" indent n
   | Values.Float n -> Printf.printf "%sfloat %f\n" indent n
   | Values.Bool b -> Printf.printf "%sbool %b\n" indent b
@@ -473,7 +609,7 @@ let rec print_value (v : Values.value) lvl : unit =
   | Values.Tuple ts ->
       Printf.printf "%stuple [%d]\n" indent (List.length ts);
       List.iter (fun v -> print_value v (lvl + 1)) ts
-  | Values.Fn (c, loc) ->
+  | Values.Fn (c, symcnt, loc) ->
       Printf.printf "%sfn @ %d\n" indent loc;
       Array.iteri
         (fun i v ->

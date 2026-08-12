@@ -6,8 +6,10 @@ type mt =
 
 and mini_type = mt Loc.spanned
 
-type p = string * mini_type
-and param = p Loc.spanned
+type prm = PrmUnit | PrmLeaf of string * mini_type | PrmTuple of param list
+and param = prm Loc.spanned
+
+type pattern = PtrnUnit | PtrnLeaf of string | PtrnTuple of pattern list
 
 type e =
   (* atoms *)
@@ -45,10 +47,10 @@ type e =
   (* tuples *)
   | Tuple of expr list
   (* function *)
-  | FnVal of param list * mini_type * expr
+  | FnVal of param * mini_type * expr
   | FnCall of expr * expr
   (* decs *)
-  | Bind of string * expr
+  | Bind of pattern * expr
   | If of expr * expr * expr
   | Block of expr Queue.t
 

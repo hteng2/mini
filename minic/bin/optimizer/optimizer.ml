@@ -1,3 +1,3 @@
 open Minic_lib
 
-let run ir = ir |> Reducer.run
+let run (ir, sc) = ir |> Reducer.run |> fun ir -> (ir, sc)

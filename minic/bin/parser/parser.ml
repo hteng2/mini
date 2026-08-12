@@ -103,20 +103,29 @@ let rec parse_param (ts : Token.t Stream.t) :
     Token.t Stream.t * Ast.param option =
   let front = ts () in
   match front with
-  | Stream.Head
-      (({ v = Token.Name name; span = sn, start_loc, _ } as token), ts') -> (
-      match parse_type ts' with
-      | ts'', Some mt ->
-          let sn, _, end_loc = mt.span in
-          (ts'', Some { v = (name, mt); span = (sn, start_loc, end_loc) })
-      | ts'', None ->
-          let old_ts = fun () -> Stream.Head (token, ts'') in
-          (old_ts, None))
+  | Stream.Head ({ v = Token.Name name; span }, ts') ->
+      let sn, start_loc, _ = span in
+      let ts'', mt = bind_type { v = "param type"; span } ts' in
+      let _, _, end_loc = mt.span in
+      ( ts'',
+        Some { v = Ast.PrmLeaf (name, mt); span = (sn, start_loc, end_loc) } )
+  | Stream.Head ({ v = Token.Lparen; span }, ts') ->
+      let sn, start_loc, _ = span in
+      let ts'', ps = parse_params ts' in
+      let ts''', (sn, _, end_loc) =
+        bind_x Token.Rparen { v = "matching )"; span } ts''
+      in
+      let v' =
+        if List.length ps = 0 then Ast.PrmUnit
+        else if List.length ps = 1 then (List.hd (ps : Ast.param list)).v
+        else Ast.PrmTuple ps
+      in
+      (ts''', Some { v = v'; span = (sn, start_loc, end_loc) })
   | _ ->
       let old_ts = fun () -> front in
       (old_ts, None)
 
-let rec parse_params ts =
+and parse_params ts =
   match parse_param ts with
   | ts', None -> (ts', [])
   | ts', Some param -> (
@@ -124,6 +133,40 @@ let rec parse_params ts =
       match front with
       | Stream.Head ({ v = Token.Comma }, ts'') ->
           let ts''', ps = parse_params ts'' in
+          (ts''', param :: ps)
+      | _ ->
+          let old_ts' = fun () -> front in
+          (old_ts', [ param ]))
+
+let rec parse_pattern (ts : Token.t Stream.t) :
+    Token.t Stream.t * Ast.pattern option =
+  let front = ts () in
+  match front with
+  | Stream.Head ({ v = Token.Name name; span }, ts') ->
+      (ts', Some (Ast.PtrnLeaf name))
+  | Stream.Head ({ v = Token.Lparen; span }, ts') ->
+      let ts'', ps = parse_patterns ts' in
+      let ts''', (sn, _, end_loc) =
+        bind_x Token.Rparen { v = "matching )"; span } ts''
+      in
+      let v' =
+        if List.length ps = 0 then Ast.PtrnUnit
+        else if List.length ps = 1 then List.hd ps
+        else Ast.PtrnTuple ps
+      in
+      (ts''', Some v')
+  | _ ->
+      let old_ts = fun () -> front in
+      (old_ts, None)
+
+and parse_patterns ts =
+  match parse_pattern ts with
+  | ts', None -> (ts', [])
+  | ts', Some param -> (
+      let front = ts' () in
+      match front with
+      | Stream.Head ({ v = Token.Comma }, ts'') ->
+          let ts''', ps = parse_patterns ts'' in
           (ts''', param :: ps)
       | _ ->
           let old_ts' = fun () -> front in
@@ -242,28 +285,37 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
           in
           (ts'''', Some expr)
       | Token.Fn ->
-          let ts2, lspan =
-            bind_x Token.Lparen { v = "param type spec"; span } ts1
+          let ts2, param =
+            match ts1 () with
+            | Stream.Head ({ v = Token.Lparen; span = lspan }, _) as front -> (
+                let old_ts1 = fun () -> front in
+                let ts2, param = parse_param old_ts1 in
+                match param with
+                | None ->
+                    raise (Errors.Expected { v = "param type spec"; span })
+                | Some p -> (ts2, p))
+            | _ -> raise (Errors.Expected { v = "param type spec"; span })
           in
-          let ts3, ps = parse_params ts2 in
-          let ts4, _ =
-            bind_x Token.Rparen { v = "matching )"; span = lspan } ts3
-          in
-          let ts5, t = bind_type { v = "result type spec"; span } ts4 in
-          let ts6, (body : Ast.expr) =
-            bind_expr 0 ({ v = "body"; span } : Errors.error) ts5
+          let ts3, t = bind_type { v = "result type spec"; span } ts2 in
+          let ts4, (body : Ast.expr) =
+            bind_expr 0 ({ v = "body"; span } : Errors.error) ts3
           in
           let sn, start_loc, _ = span in
           let sn, _, end_loc = body.span in
-          let ts7, expr =
-            advance_expr ts6 min_bp
-              { v = Ast.FnVal (ps, t, body); span = (sn, start_loc, end_loc) }
+          let ts5, expr =
+            advance_expr ts4 min_bp
+              {
+                v = Ast.FnVal (param, t, body);
+                span = (sn, start_loc, end_loc);
+              }
           in
-          (ts7, Some expr)
+          (ts5, Some expr)
       | Token.Bind ->
           let sn, start_loc, end_loc = span in
-          let ts2, name =
-            bind_name { v = "name"; span = (sn, start_loc, end_loc) } ts1
+          let ts2, ptrn =
+            match parse_pattern ts1 with
+            | _, None -> raise (Errors.Expected { v = "pattern"; span })
+            | ts2, Some ptrn -> (ts2, ptrn)
           in
           let ts3, ({ span = sn, _, end_loc; _ } as expr : Ast.expr) =
             bind_expr 0
@@ -272,7 +324,7 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
           in
           let ts4, expr =
             advance_expr ts3 min_bp
-              { v = Ast.Bind (name, expr); span = (sn, start_loc, end_loc) }
+              { v = Ast.Bind (ptrn, expr); span = (sn, start_loc, end_loc) }
           in
           (ts4, Some expr)
       | Token.If ->

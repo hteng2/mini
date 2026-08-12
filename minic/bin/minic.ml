@@ -89,11 +89,16 @@ let () =
         ir) *)
       |> Optimizer.run
       (* |> (fun ir ->
-        Debug.print_ir ir 0;
-        ir) *)
+      Debug.print_ir (fst ir) 0;
+      ir) *)
       |> Lowering.run
-      |> (fun ir3 ->
+      |> (fun (ir3, sc) ->
       Debug.print_ir3 ir3;
-      ir3)
+      (ir3, sc))
       |> Eval.run
+  | "build" ->
+      if Array.length Sys.argv <> 4 then print_usage ();
+      parse_and_import absolute_path (H.create 0)
+      |> analyze |> Optimizer.run |> Lowering.run
+      |> Codegen.run Sys.argv.(3)
   | _ -> print_usage ()

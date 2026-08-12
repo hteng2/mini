@@ -36,9 +36,7 @@ type ir3 =
   | ILe
   (* float *)
   | FGt
-  | FGe
   | FLt
-  | FLe
   (* char *)
   | CEq
   | CNeq
@@ -53,9 +51,10 @@ type ir3 =
   | At
   (* tuples *)
   | Tuple of int
+  | Destruct
   (* function *)
-  (* params, closure captures, body size *)
-  | FnVal of int * int array * int
+  (* closure captures, sym count, body size *)
+  | FnVal of int array * int * int
   | FnCall
   | FnTailCall
   (* decs *)
@@ -64,3 +63,5 @@ type ir3 =
   | If
   | Jmp of int
   | JmpBck
+
+type program = ir3 Array.t * int

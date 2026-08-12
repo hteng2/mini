@@ -253,17 +253,6 @@ let rec reduce (ir : Ir2.expr) ctx : bool * Ir2.expr =
           match (e1'.v, e2'.v) with
           | Ir2.Int n1, Ir2.Int n2 -> (true, { ir with v = Ir2.Bool (n1 >= n2) })
           | _ -> assert false)
-    | Ir2.FGe (e1, e2) -> (
-        let ctx' = { exprtail = true; fntail = false; fn = false } in
-        let pure1, e1' = reduce e1 ctx' in
-        let pure2, e2' = reduce e2 ctx' in
-        if (not pure1) || not pure2 then
-          (false, { ir with v = Ir2.FGe (e1', e2') })
-        else
-          match (e1'.v, e2'.v) with
-          | Ir2.Float f1, Ir2.Float f2 ->
-              (true, { ir with v = Ir2.Bool (f1 >= f2) })
-          | _ -> assert false)
     | Ir2.CGe (e1, e2) -> (
         let ctx' = { exprtail = true; fntail = false; fn = false } in
         let pure1, e1' = reduce e1 ctx' in
@@ -317,17 +306,6 @@ let rec reduce (ir : Ir2.expr) ctx : bool * Ir2.expr =
           match (e1'.v, e2'.v) with
           | Ir2.Int n1, Ir2.Int n2 -> (true, { ir with v = Ir2.Bool (n1 <= n2) })
           | _ -> assert false)
-    | Ir2.FLe (e1, e2) -> (
-        let ctx' = { exprtail = true; fntail = false; fn = false } in
-        let pure1, e1' = reduce e1 ctx' in
-        let pure2, e2' = reduce e2 ctx' in
-        if (not pure1) || not pure2 then
-          (false, { ir with v = Ir2.FLe (e1', e2') })
-        else
-          match (e1'.v, e2'.v) with
-          | Ir2.Float f1, Ir2.Float f2 ->
-              (true, { ir with v = Ir2.Bool (f1 <= f2) })
-          | _ -> assert false)
     | Ir2.CLe (e1, e2) -> (
         let ctx' = { exprtail = true; fntail = false; fn = false } in
         let pure1, e1' = reduce e1 ctx' in
@@ -361,10 +339,10 @@ let rec reduce (ir : Ir2.expr) ctx : bool * Ir2.expr =
         let pure = List.for_all fst es' in
         let es'' = List.map snd es' in
         (pure, { ir with v = Ir2.Tuple es'' })
-    | Ir2.FnVal (argc, closure, body) ->
+    | Ir2.FnVal (p, closure, symcnt, body) ->
         let ctx' = { exprtail = true; fntail = false; fn = true } in
         let pure, body' = reduce body ctx' in
-        (false, { ir with v = Ir2.FnVal (argc, closure, body') })
+        (false, { ir with v = Ir2.FnVal (p, closure, symcnt, body') })
     | Ir2.FnCall (fn, arg) ->
         let ctx' = { exprtail = true; fntail = false; fn = false } in
         let pure1, fn' = reduce fn ctx' in

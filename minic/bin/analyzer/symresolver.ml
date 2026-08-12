@@ -197,21 +197,13 @@ let rec resolve_expr ({ v; span } : Ast.expr) (scope : (string, int) Hashtbl.t)
       in
       let es' = infer_list es [] in
       { v = Ir1.Tuple (List.rev es'); span }
-  | Ast.FnVal (ps, t, body) ->
+  | Ast.FnVal (p, t, body) ->
       let scope' = Hashtbl.create 0 in
-      let closure' = Hashtbl.create 0 in
-      let ps' =
-        List.fold_right
-          (fun ({ v = name, t; span } : Ast.param) names ->
-            let i = !id in
-            Hashtbl.add scope' name i;
-            id := !id + 1;
-            (i, t) :: names)
-          ps []
-      in
       let self = !id in
       Hashtbl.add scope' "self" self;
       id := !id + 1;
+      let p' = resolve_param p scope' id in
+      let closure' = Hashtbl.create 0 in
       let body' = resolve_expr body scope' closure' (scope :: scopes) id in
       let closure'' =
         Hashtbl.fold
@@ -222,19 +214,17 @@ let rec resolve_expr ({ v; span } : Ast.expr) (scope : (string, int) Hashtbl.t)
             n :: acc)
           closure' []
       in
-      { v = Ir1.FnVal (ps', closure'', t, self, body'); span }
+      { v = Ir1.FnVal (p', closure'', t, self, 0, body'); span }
   | Ast.FnCall (fn, arg) ->
       let fn' = resolve_expr fn scope closure scopes id in
       let arg' = resolve_expr arg scope closure scopes id in
       { v = Ir1.FnCall (fn', arg'); span }
-  | Ast.Bind (name, expr) ->
+  | Ast.Bind (ptrn, expr) ->
+      let ptrn' = resolve_pattern ptrn scope id in
       let ({ v = e' } as expr' : Ir1.expr) =
         resolve_expr expr scope closure scopes id
       in
-      let i = !id in
-      id := !id + 1;
-      Hashtbl.add scope name i;
-      { v = Ir1.Bind (i, expr'); span }
+      { v = Ir1.Bind (ptrn', expr'); span }
   | Ast.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) =
         resolve_expr expr scope closure scopes id
@@ -286,6 +276,30 @@ and resolve_exprs es scope closure scopes id =
   in
   helper ();
   Array.init (Queue.length acc) (fun _ -> Queue.take acc)
+
+and resolve_param (p : Ast.param) scope id : Ir1.param =
+  match p.v with
+  | Ast.PrmUnit -> Ir1.PrmUnit
+  | Ast.PrmLeaf (name, t) ->
+      let i = !id in
+      Hashtbl.add scope name i;
+      incr id;
+      Ir1.PrmLeaf (i, t)
+  | Ast.PrmTuple ps ->
+      let ps' = List.map (fun p -> resolve_param p scope id) ps in
+      Ir1.PrmTuple ps'
+
+and resolve_pattern (p : Ast.pattern) scope id : Ir1.pattern =
+  match p with
+  | Ast.PtrnUnit -> Ir1.PtrnUnit
+  | Ast.PtrnLeaf name ->
+      let i = !id in
+      Hashtbl.add scope name i;
+      incr id;
+      Ir1.PtrnLeaf i
+  | Ast.PtrnTuple ps ->
+      let ps' = List.map (fun p -> resolve_pattern p scope id) ps in
+      Ir1.PtrnTuple ps'
 
 (* apply type induction rules and convert to ops *)
 let rec simplify_expr ({ v; span } as expr : Ir1.expr)
@@ -381,7 +395,7 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
   | Ir1.Tuple es ->
       let es' = List.map (fun e -> simplify_expr e mapping id) es in
       { v = Ir1.Tuple es'; span }
-  | Ir1.FnVal (ps, closure, t, self, body) ->
+  | Ir1.FnVal (p, closure, t, self, symcnt, body) ->
       let mapping' = Hashtbl.create 0 in
       let id' = ref 0 in
 
@@ -389,34 +403,25 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
       Hashtbl.add mapping' self !id';
       incr id';
 
-      let ps' =
-        List.map
-          (fun (name, t) ->
-            let name' = !id' in
-            Hashtbl.add mapping' name name';
-            incr id';
-            (name', t))
-          ps
-      in
-
       let closure' = List.map (fun name -> Hashtbl.find mapping name) closure in
       List.iter
         (fun name ->
           Hashtbl.add mapping' name !id';
           incr id')
         closure;
+
+      let p' = simplify_param p mapping' id' in
+
       let body' = simplify_expr body mapping' id' in
-      { v = Ir1.FnVal (ps', closure', t, self', body'); span }
+      { v = Ir1.FnVal (p', closure', t, self', !id', body'); span }
   | Ir1.FnCall (fn, arg) ->
       let fn' = simplify_expr fn mapping id in
       let arg' = simplify_expr arg mapping id in
       { v = Ir1.FnCall (fn', arg'); span }
-  | Ir1.Bind (name, expr) ->
+  | Ir1.Bind (ptrn, expr) ->
+      let ptrn' = simplify_pattern ptrn mapping id in
       let ({ v = e' } as expr' : Ir1.expr) = simplify_expr expr mapping id in
-      let i = !id in
-      Hashtbl.add mapping name i;
-      incr id;
-      { v = Ir1.Bind (i, expr'); span }
+      { v = Ir1.Bind (ptrn', expr'); span }
   | Ir1.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) = simplify_expr expr mapping id in
       let ({ v = e1' } as body' : Ir1.expr) = simplify_expr body mapping id in
@@ -429,6 +434,30 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
 and simplify_exprs es mapping id =
   Array.map (fun expr -> simplify_expr expr mapping id) es
 
+and simplify_param (p : Ir1.param) mapping id : Ir1.param =
+  match p with
+  | Ir1.PrmUnit -> Ir1.PrmUnit
+  | Ir1.PrmLeaf (name, t) ->
+      let i = !id in
+      Hashtbl.add mapping name i;
+      incr id;
+      Ir1.PrmLeaf (i, t)
+  | Ir1.PrmTuple ps ->
+      let ps' = List.map (fun p -> simplify_param p mapping id) ps in
+      Ir1.PrmTuple ps'
+
+and simplify_pattern (p : Ir1.pattern) mapping id : Ir1.pattern =
+  match p with
+  | Ir1.PtrnUnit -> Ir1.PtrnUnit
+  | Ir1.PtrnLeaf name ->
+      let i = !id in
+      Hashtbl.add mapping name i;
+      incr id;
+      Ir1.PtrnLeaf i
+  | Ir1.PtrnTuple ps ->
+      let ps' = List.map (fun p -> simplify_pattern p mapping id) ps in
+      Ir1.PtrnTuple ps'
+
 let run es =
   let s = Hashtbl.create 0 in
   let c = Hashtbl.create 0 in
@@ -439,7 +468,11 @@ let run es =
     resolve_exprs es s c [] (List.length Builtins.builtins |> ref)
   in
   let m = Hashtbl.create 0 in
+  let id = ref 0 in
   List.iteri
-    (fun i (bfn : Builtins.builtinFn) -> Hashtbl.add m i i)
+    (fun i (bfn : Builtins.builtinFn) ->
+      Hashtbl.add m i !id;
+      incr id)
     Builtins.builtins;
-  simplify_exprs irs m (List.length Builtins.builtins |> ref)
+  let irs' = simplify_exprs irs m id in
+  (irs', !id)

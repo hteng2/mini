@@ -1,4 +1,7 @@
 (* IR-1 - SSA form *)
+type param = PrmUnit | PrmLeaf of int * Ast.mini_type | PrmTuple of param list
+type pattern = PtrnUnit | PtrnLeaf of int | PtrnTuple of pattern list
+
 type e =
   (* atoms *)
   | Int of int
@@ -34,12 +37,15 @@ type e =
   (* tuple *)
   | Tuple of expr list
   (* function *)
-  | FnVal of (int * Ast.mini_type) list * int list * Ast.mini_type * int * expr
+  (* param, closure, return type, self, symcnt, body*)
+  | FnVal of param * int list * Ast.mini_type * int * int * expr
   | FnCall of expr * expr
   (* decs *)
-  | Bind of int * expr
+  | Bind of pattern * expr
   | If of expr * expr * expr
   (* closure captures, body *)
   | Block of expr Array.t
 
 and expr = e Loc.spanned
+
+type program = expr Array.t * int
