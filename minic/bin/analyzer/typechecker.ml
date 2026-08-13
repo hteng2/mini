@@ -22,7 +22,12 @@ let rec translate_type (t : Ast.mini_type) =
            { v = Printf.sprintf "unrecognized type %s" s; span = t.span })
   | Ast.MtList t' -> Types.List (translate_type t')
   | Ast.MtFn (t1, t2) -> Types.Fn (translate_type t1, translate_type t2)
-  | Ast.MtTup ts -> Types.Tuple (List.map translate_type ts)
+  | Ast.MtTup ts -> (
+      let ts' = List.map translate_type ts in
+      match List.length ts' with
+      | 0 -> Types.Void
+      | 1 -> List.hd ts'
+      | _ -> Types.Tuple (List.map translate_type ts))
 
 (* check param type *)
 let rec check_param (p : Ir1.param) (scope : (int, Types.t) Hashtbl.t) :

@@ -40,9 +40,7 @@ let rec parse_type (ts : Token.t Stream.t) :
         bind_x Token.Rparen { v = "matching )"; span } ts''
       in
       let sn, start_loc, _ = span in
-      let t =
-        if List.length types = 1 then (List.hd types).v else Ast.MtTup types
-      in
+      let t = Ast.MtTup types in
       let ts'''', t =
         advance_type ts''' { v = t; span = (sn, start_loc, end_loc) }
       in
@@ -329,30 +327,45 @@ and parse_expr (ts : Token.t Stream.t) min_bp =
           (ts4, Some expr)
       | Token.If ->
           let sn, start_loc, end_loc = span in
-          let ts2, expr =
-            bind_expr prefix_bp
-              { v = "expression"; span = (sn, start_loc, end_loc) }
+          let ts2, (_, _, end_loc) =
+            bind_x Token.Lparen
+              { v = "condition"; span = (sn, start_loc, end_loc) }
               ts1
           in
-          let ts3, ({ span = sn, _, end_loc } as body : Ast.expr) =
-            bind_expr 0 { v = "body"; span = (sn, start_loc, end_loc) } ts2
+          let ts3, expr =
+            bind_expr prefix_bp
+              { v = "expression"; span = (sn, start_loc, end_loc) }
+              ts2
           in
-          let ts4, (sn, _, end_loc) =
-            (bind_x Token.Else)
-              { v = "body"; span = (sn, start_loc, end_loc) }
+          let _, _, end_loc = expr.span in
+          let ts4, (_, _, end_loc) =
+            bind_x Token.Rparen
+              { v = "matching )"; span = (sn, start_loc, end_loc) }
               ts3
           in
-          let ts5, ({ span = sn, _, end_loc } as body2 : Ast.expr) =
-            bind_expr 0 { v = "body"; span = (sn, start_loc, end_loc) } ts4
+          let ts5, ({ span = sn, _, end_loc } as body : Ast.expr) =
+            bind_expr 0
+              { v = "expression"; span = (sn, start_loc, end_loc) }
+              ts4
           in
-          let ts6, expr =
-            advance_expr ts5 min_bp
+          let ts6, (sn, _, end_loc) =
+            (bind_x Token.Else)
+              { v = "else"; span = (sn, start_loc, end_loc) }
+              ts5
+          in
+          let ts7, ({ span = sn, _, end_loc } as body2 : Ast.expr) =
+            bind_expr 0
+              { v = "expression"; span = (sn, start_loc, end_loc) }
+              ts6
+          in
+          let ts8, expr =
+            advance_expr ts7 min_bp
               {
                 v = Ast.If (expr, body, body2);
                 span = (sn, start_loc, end_loc);
               }
           in
-          (ts6, Some expr)
+          (ts8, Some expr)
       | Token.Lbrace ->
           let sn, start_loc, end_loc = span in
           let body = Queue.create () in

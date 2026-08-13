@@ -17,7 +17,7 @@ let to_escaped c =
 let move_head c (row, col) =
   match c with '\n' -> (row + 1, 1) | _ -> (row, col + 1)
 
-let rec tokenize src sn = t src sn (1, 1)
+let rec stream src sn = t src sn (1, 1)
 
 and t src sn head =
  fun () ->

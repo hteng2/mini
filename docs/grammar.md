@@ -1,129 +1,72 @@
 # Context-Free Grammar
 
-Start form: F
+Start form: File
 
-## File
+File -> Imports Program
 
-F -> IP
+Imports -> EMPTY | `Import` `Str` `Semicolon` Imports
 
-## Imports
+Program -> EMPTY | Expr Program
 
-I -> EMPTY
+## Expr (in order of priority)
 
-I -> `Import` `Str` I
+Expr -> `Lparen` Expr `Rparen` | Atom | BiOp | UnOp | Stmt | Misc
 
-## Program
+**Atom**
 
-P -> EMPTY
+Atom -> `Num` | `Char` | `Str` | `Name` | Bool | Void
 
-P -> EP
+Bool -> `True` | `False`
 
-## Expression
+Void -> `Lparen` `Rparen`
 
-**Atoms**
+**BiOp**
 
-E -> `Num`
+BiOp -> Expr operator Expr
 
-E -> `Char`
+When Expr between two operators, the one with higher power gets the Expr:
 
-E -> `Str`
+| operator                       | left | right |
+| ------------------------------ | ---- | ----- |
+| `Or`                           | 1    | 2     |
+| `Xor`                          | 3    | 4     |
+| `And`                          | 5    | 6     |
+| `Eq` `Neq` `Gt` `Ge` `Lt` `Le` | 7    | 8     |
+| `Add` `Sub`                    | 9    | 10    |
+| `Mul` `Div` `Mod`              | 11   | 12    |
 
-E -> `Name`
+**UnOp**
 
-E -> `True`
+UnOp -> `Add` Expr | `Sub` Expr | `Not` Expr
 
-E -> `False`
+**Stmt**
 
-E -> Void -> `Lparen` `Rparen`
+Bind -> `Bind` Pattern(`Name`) Expr
 
-**Arith**
-
-E -> Neg -> `Sub` E
-
-E -> Pos -> `Pos` E
-
-E -> Add -> E `Add` E
-
-E -> Sub -> E `Sub` E
-
-E -> Mul -> E `Mul` E
-
-E -> Div -> E `Div` E
-
-E -> Mod -> E `Mod` E
-
-**Logic**
-
-E -> Not -> `Not` E
-
-E -> And -> E `And` E
-
-E -> Or -> E `Or` E
-
-E -> Xor -> E `Xor` E
-
-**Comp**
-
-E -> Eq -> E `Eq` E
-
-E -> Neq -> E `Neq` E
-
-E -> Gt -> E `Gt` E
-
-E -> Ge -> E `Ge` E
-
-E -> Lt -> E `Lt` E
-
-E -> Le -> E `Le` E
+If -> `If` `Lparen` Expr `Rparen` Expr `Else` Expr
 
 **Misc**
 
-E -> List -> `Lbrack` Es `Rbrack`
+List -> `Lbrack` Mult(Expr) `Rbrack`
 
-E -> At -> E `Lbrack` E `Rbrack`
+At -> Expr `Lbrack` Expr `Rbrack`
 
-E -> FnVal -> `Fn` `Lparen` Params `Rparen` T E
+Tuple -> `Lparen` Mult(Expr) `Rparen`
 
-E -> FnCall -> E `Lparen` Es `Rparen`
+FnVal -> `Fn` `Lparen` Pattern(`Name` Type) `Rparen` Type Expr
 
-E -> `Lparen` E `Rparen`
+FnCall -> Expr Expr
 
-E -> Bind -> `Bind` `Str` E
+Block -> `Lbrace` Program `Rbrace`
 
-E -> If -> `If` E E `Else` E
+## Mult(G)
 
-E -> Block -> `Lbrace` P `Rbrace`
+Mult(G) -> EMPTY | G | G `Comma` Mult(G)
 
-**Multiple Expressions**
+## Pattern(G)
 
-Es -> Empty
+Pattern(G) -> `Lparen` Pattern(G) `Rparen` | `Lparen` `Rparen` | G | `Lparen` Mult(Pattern(G)) `Rparen`
 
-Es -> E
+## Type
 
-Es -> E `Comma` Es
-
-**Params**
-
-Param -> `Name` T
-
-Params -> EMPTY
-
-Params -> Param
-
-Params -> Param `Comma` Params
-
-## types
-
-T -> `Name`
-
-T -> `Lparen` T `Rparen`
-
-T -> List -> T `Lbrack` `Rbrack`
-
-T -> Fn -> T `Lparen` Ts `Rparen`
-
-Ts -> EMPTY
-
-Ts -> T
-
-Ts -> T `Comma` Ts
+Type -> `Name` | Type `Lbrack` `Rbrack` | Type `To` Type | Pattern(Type)

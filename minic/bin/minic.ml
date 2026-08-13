@@ -30,7 +30,7 @@ let rec parse_and_import file (files : hashset) : Ast.expr Queue.t =
       let src = open_in file' |> src_to_stream in
       let _ = H.add files file' () in
 
-      let ts = Lexer.tokenize src file' in
+      let ts = Lexer.stream src file' in
       let ts', imports = Parser.scan_imports ts in
 
       let dirname = Filename.dirname file' in
