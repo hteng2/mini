@@ -22,7 +22,7 @@ let to_real_path path =
       Printf.printf "Error '%s' for '%s'\n" (Unix.error_message err) path;
       exit 0
 
-let rec parse_and_import file (files : hashset) : Ast.expr Queue.t =
+let rec parse_and_import file (files : hashset) (asts : Ast.expr Queue.t) =
   let file' = to_real_path file in
   if H.mem files file' then raise (Failure "circular import detected")
   else
@@ -38,16 +38,8 @@ let rec parse_and_import file (files : hashset) : Ast.expr Queue.t =
         List.map (fun import -> Filename.concat dirname import) imports
       in
 
-      let ast = Parser.parse ts' file' in
-      List.fold_left
-        (fun ast import ->
-          let ast2 = parse_and_import import files in
-          Queue.transfer ast2 ast;
-          ast2)
-        ast imports'
-      (* |> fun ast ->
-      Debug.print_ast ast 0;
-      ast *)
+      List.iter (fun import -> parse_and_import import files asts) imports';
+      Queue.transfer (Parser.parse ts' file') asts
     with
     | Errors.Expected { v; span = sn, (a, b), (c, d) } ->
         Printf.printf "error: %s %d:%d-%d:%d - expected %s\n" sn a b c d v;
@@ -89,8 +81,9 @@ let () =
       if Array.length Sys.argv <> 3 then (
         print_usage ();
         exit 0);
-      parse_and_import absolute_path (H.create 0)
-      |> analyze
+      let asts = Queue.create () in
+      parse_and_import absolute_path (H.create 0) asts;
+      asts |> analyze
       (* |> (fun ir ->
         Debug.print_ir ir 0;
         ir) *)
@@ -107,7 +100,8 @@ let () =
       if Array.length Sys.argv <> 4 then (
         print_usage ();
         exit 0);
-      parse_and_import absolute_path (H.create 0)
-      |> analyze |> Optimizer.run |> Lowering.run
+      let asts = Queue.create () in
+      parse_and_import absolute_path (H.create 0) asts;
+      asts |> analyze |> Optimizer.run |> Lowering.run
       |> Codegen.run Sys.argv.(3)
   | _ -> print_usage ()

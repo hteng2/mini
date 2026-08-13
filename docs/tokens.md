@@ -57,6 +57,6 @@ Mod: `%`
 **logic**
 
 And: `&`  
-Or: `\|`  
+Or: `|`  
 Not: `!`  
 Xor: `^`

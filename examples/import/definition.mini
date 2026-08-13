@@ -1,0 +1,5 @@
+bind printTwice fn (s char[]) void {
+    println s;
+    println s;
+    ()
+}
