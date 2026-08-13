@@ -1,0 +1,14 @@
+# finds the "iters"th fibbonacci number
+bind iters 20;
+
+bind f fn (iter int, acc (int, int)) int {
+    bind (a, b) acc;
+    if (iter < iters) {
+        bind (a, b) (b, a+b);
+        self (iter+1, (a, b))
+    } else {
+        a
+    }
+};
+
+println (itoa (f(0, (0, 1))))

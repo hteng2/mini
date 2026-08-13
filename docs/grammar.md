@@ -1,107 +1,129 @@
-# grammar definition
+# Context-Free Grammar
 
 Start form: F
 
-## file
+## File
 
-F ::= IP
+F -> IP
 
-## imports
+## Imports
 
-I ::= EMPTY | `Import` `Str` I
+I -> EMPTY
 
-## program
+I -> `Import` `Str` I
 
-P ::= EMPTY | EP
+## Program
 
-## expressions
+P -> EMPTY
 
-E ::=
+P -> EP
 
-| `Num`
+## Expression
 
-| `Char`
+**Atoms**
 
-| `Str`
+E -> `Num`
 
-| `Name`
+E -> `Char`
 
-| `True`
+E -> `Str`
 
-| `False`
+E -> `Name`
 
-| `Lparen` `Rparen`
+E -> `True`
 
-| `Sub` E
+E -> `False`
 
-| `Pos` E
+E -> Void -> `Lparen` `Rparen`
 
-| E `Add` E
+**Arith**
 
-| E `Sub` E
+E -> Neg -> `Sub` E
 
-| E `Mul` E
+E -> Pos -> `Pos` E
 
-| E `Div` E
+E -> Add -> E `Add` E
 
-| E `Mod` E
+E -> Sub -> E `Sub` E
 
-| `Not` E
+E -> Mul -> E `Mul` E
 
-| E `And` E
+E -> Div -> E `Div` E
 
-| E `Or` E
+E -> Mod -> E `Mod` E
 
-| E `Xor` E
+**Logic**
 
-| E `Eq` E
+E -> Not -> `Not` E
 
-| E `Neq` E
+E -> And -> E `And` E
 
-| E `Gt` E
+E -> Or -> E `Or` E
 
-| E `Ge` E
+E -> Xor -> E `Xor` E
 
-| E `Lt` E
+**Comp**
 
-| E `Le` E
+E -> Eq -> E `Eq` E
 
-| `Lbrack` Es `Rbrack`
+E -> Neq -> E `Neq` E
 
-| E `Lbrack` E `Rbrack`
+E -> Gt -> E `Gt` E
 
-| `Fn` `Lparen` Ps `Rparen` type E
+E -> Ge -> E `Ge` E
 
-| E `Lparen` Es `Rparen`
+E -> Lt -> E `Lt` E
 
-| `Lparen` E `Rparen`
+E -> Le -> E `Le` E
 
-| `let` `Str` E
+**Misc**
 
-| `If` E E `Else` E
+E -> List -> `Lbrack` Es `Rbrack`
 
-| `While` E E
+E -> At -> E `Lbrack` E `Rbrack`
 
-| `Break`
+E -> FnVal -> `Fn` `Lparen` Params `Rparen` T E
 
-| `Continue`
+E -> FnCall -> E `Lparen` Es `Rparen`
 
-| `Lbrace` P `Rbrace`
+E -> `Lparen` E `Rparen`
 
-Es ::= EMPTY | E `Comma` Es
+E -> Bind -> `Bind` `Str` E
 
-Ps ::= EMPTY | `Name` T `Comma` Ps
+E -> If -> `If` E E `Else` E
+
+E -> Block -> `Lbrace` P `Rbrace`
+
+**Multiple Expressions**
+
+Es -> Empty
+
+Es -> E
+
+Es -> E `Comma` Es
+
+**Params**
+
+Param -> `Name` T
+
+Params -> EMPTY
+
+Params -> Param
+
+Params -> Param `Comma` Params
 
 ## types
 
-T ::=
+T -> `Name`
 
-| `Name`
+T -> `Lparen` T `Rparen`
 
-| `Lparen` T `Rparen`
+T -> List -> T `Lbrack` `Rbrack`
 
-| T `Lbrack` `Rbrack`
+T -> Fn -> T `Lparen` Ts `Rparen`
 
-| T `Lparen` Ts `Rparen`
+Ts -> EMPTY
 
-Ts ::= EMPTY | T `Comma` Ts
+Ts -> T
+
+Ts -> T `Comma` Ts

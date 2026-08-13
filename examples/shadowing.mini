@@ -1,0 +1,12 @@
+# binds shadow each other
+
+bind x "a";
+bind getA fn () char[] (x);
+
+bind x "b";
+bind getB fn () char[] (x);
+
+println(getA());
+println(getB());
+
+()

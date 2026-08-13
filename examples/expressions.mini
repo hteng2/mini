@@ -1,0 +1,22 @@
+# everything is an expression
+# expression chains are multiple expressions connected by semicolons
+bind a 0;
+1;
+!true;
+();
+println "hey!";
+
+# the last evaluated expression in a chain becomes the value of the chain
+bind x {
+    bind y 1;
+    bind z 2;
+    y + z
+};
+println(itoa(x));
+
+# this also applies to functions
+bind max3 fn (a int, b int, c int) int {
+    bind ab if (a < b) b else a;
+    if (ab < c) c else ab
+};
+println(itoa(max3(1, 2, 3)))

@@ -1,51 +1,53 @@
-let randint fn (max int) int {
+# a little "market making" game, showcasing builtins, tail recursion, arrays
+
+bind randint fn (max int) int {
 	ftoi (rand() * itof(max))
 };
 
-let genprice fn (center int, range int) int {
+bind genprice fn (center int, range int) int {
 	randint(range) - range/2 + center
 };
 
-let rounds 5;
-let length 5;
-let ranges [
+bind rounds 5;
+bind length 5;
+bind ranges [
 	500, 	300, 	200,	150,	120,
 	100, 	80, 	60, 	50, 	30
 ];
 
-let trueprice randint(500) + 500;
+bind trueprice randint(500) + 500;
 
 print("true price: ");
 println(itoa(trueprice));
 
-let profit (fn (cash int, eqs int, round int) int {
-	let s self;
-	if round >= rounds {
+bind profit (fn (cash int, eqs int, round int) int {
+	bind s self;
+	if (round >= rounds) {
 		cash + eqs * trueprice
 	} else {
     	print("initial min: ");
-    	let min atoi(readline());
+    	bind min atoi(readline());
 
     	print("initial max: ");
-    	let max atoi(readline());
+    	bind max atoi(readline());
 
-        (fn (t int, cash int, eqs int, k int(int, int)) int {
-            if t >= length {
+        (fn (t int, cash int, eqs int, k (int, int) -> int) int {
+            if (t >= length) {
                 k(cash, eqs)
             } else {
-                let price genprice(trueprice, ranges[round]);
+                bind price genprice(trueprice, ranges[round]);
                 print(itoa(price));
 
-                let new_cash if price > max { cash + price } else { cash };
-                let new_eqs if price > max { eqs - 1 } else { eqs };
+                bind new_cash if (price > max) { cash + price } else { cash };
+                bind new_eqs if (price > max) { eqs - 1 } else { eqs };
 
-                if price > max {
+                if (price > max) {
                     print(" SELL")
-                } else {()};
+                } else ();
 
-                if price < min {
+                if (price < min) {
                     print(" BUY")
-                } else {()};
+                } else ();
 
                 println("");
 

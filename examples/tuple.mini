@@ -1,0 +1,17 @@
+# pattern matching with tuples
+bind (a, b) ("b is true", true);
+if b {
+    println a
+} else {
+    ()
+};
+
+# nested pattern matching, even in functions
+bind f fn (_ void, (a char[], b bool)) void {
+    if a {
+        println b
+    } else {
+        ()
+    }
+};
+f ((), (a, b))

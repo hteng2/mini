@@ -1,6 +1,0 @@
-let iters 4000000;
-(fn (i int) void {
-    if i < iters {
-        self (i+1)
-    } else ()
-}) (0)

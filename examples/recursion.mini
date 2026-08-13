@@ -1,0 +1,17 @@
+# recursion works via the self binding
+# the "self" binding is the same as any other binding,
+# just automatically applied!
+bind x (fn (i int, acc int) int {
+    if (i < 100) (self(i+1, acc+i))
+    else acc
+})(0, 0);
+println(itoa(x));
+
+# the binding order of a function is closure -> self -> params
+# so parameters can shadow the self binding!
+bind callWithSecret fn (self int->int) int (self(314159));
+bind f fn (x int) int (x+1);
+bind res callWithSecret(f);
+println(itoa(res));
+
+()
