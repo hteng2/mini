@@ -220,10 +220,10 @@ let rec resolve_expr ({ v; span } : Ast.expr) (scope : (string, int) Hashtbl.t)
       let arg' = resolve_expr arg scope closure scopes id in
       { v = Ir1.FnCall (fn', arg'); span }
   | Ast.Bind (ptrn, expr) ->
-      let ptrn' = resolve_pattern ptrn scope id in
       let ({ v = e' } as expr' : Ir1.expr) =
         resolve_expr expr scope closure scopes id
       in
+      let ptrn' = resolve_pattern ptrn scope id in
       { v = Ir1.Bind (ptrn', expr'); span }
   | Ast.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) =
@@ -419,8 +419,8 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr)
       let arg' = simplify_expr arg mapping id in
       { v = Ir1.FnCall (fn', arg'); span }
   | Ir1.Bind (ptrn, expr) ->
-      let ptrn' = simplify_pattern ptrn mapping id in
       let ({ v = e' } as expr' : Ir1.expr) = simplify_expr expr mapping id in
+      let ptrn' = simplify_pattern ptrn mapping id in
       { v = Ir1.Bind (ptrn', expr'); span }
   | Ir1.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) = simplify_expr expr mapping id in
