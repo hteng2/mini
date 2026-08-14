@@ -1,5 +1,15 @@
 (* IR-1 - SSA form *)
-type param = PrmUnit | PrmLeaf of int * Ast.mini_type | PrmTuple of param list
+
+type rt =
+  | RtBase of string
+  | RtVar of int
+  | RtList of resolved_type
+  | RtFn of resolved_type * resolved_type
+  | RtTup of resolved_type list
+
+and resolved_type = rt Loc.spanned
+
+type param = PrmUnit | PrmLeaf of int * resolved_type | PrmTuple of param list
 type pattern = PtrnUnit | PtrnLeaf of int | PtrnTuple of pattern list
 
 type e =
@@ -37,8 +47,8 @@ type e =
   (* tuple *)
   | Tuple of expr list
   (* function *)
-  (* param, closure, return type, self, symcnt, body*)
-  | FnVal of param * int list * Ast.mini_type * int * int * expr
+  (* type vars, param, closure, return type, self, symcnt, body*)
+  | FnVal of int list * param * int list * resolved_type * int * int * expr
   | FnCall of expr * expr
   (* decs *)
   | Bind of pattern * expr

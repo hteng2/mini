@@ -26,6 +26,7 @@ let t2s t =
   | Token.Comma -> "Comma\t"
   | Token.Semicolon -> "Semicolon\t"
   | Token.To -> "To\t"
+  | Token.Typevar n -> Printf.sprintf "Typevar %s\t" n
   | Token.Eq -> "Eq\t"
   | Token.Neq -> "Neq\t"
   | Token.Gt -> "Gt\t"
@@ -52,8 +53,8 @@ let t2s t =
 let rec print_tokens ts =
   match ts () with
   | Stream.End -> fun () -> Stream.End
-  | Stream.Head (({ v; span = sn, (sr, sc), (er, ec) } as token : Token.t), ts')
-    ->
+  | Stream.Head
+      (({ v; span = sn, (sr, sc), (er, ec) } as token : Token.token), ts') ->
       Printf.printf "%s %d:%d-%d:%d\n" (t2s v) sr sc er ec;
       let ts'' = print_tokens ts' in
       fun () -> Stream.Head (token, ts'')
@@ -153,8 +154,9 @@ and print_expr (expr : Ast.expr) lvl : unit =
   | Ast.Tuple es ->
       Printf.printf "tuple\n";
       List.fold_left (fun () -> fun e -> print_expr e (lvl + 1)) () es
-  | Ast.FnVal (p, t, body) ->
-      Printf.printf "fnval (%s) -> %s\n" (param2s p) (mt2s t);
+  | Ast.FnVal (tvs, p, t, body) ->
+      Printf.printf "fnval [%s] (%s) -> %s\n" (String.concat " " tvs)
+        (param2s p) (pt2s t);
       print_expr body (lvl + 1)
   | Ast.FnCall (e1, e2) ->
       Printf.printf "fncall\n";
@@ -175,7 +177,7 @@ and print_expr (expr : Ast.expr) lvl : unit =
 and param2s (param : Ast.param) =
   match param.v with
   | Ast.PrmUnit -> "()"
-  | Ast.PrmLeaf (name, mt) -> Printf.sprintf "%s: %s" name (mt2s mt)
+  | Ast.PrmLeaf (name, mt) -> Printf.sprintf "%s: %s" name (pt2s mt)
   | Ast.PrmTuple ps ->
       ps
       |> List.map (fun t -> param2s t)
@@ -192,14 +194,15 @@ and ptrn2s (ptrn : Ast.pattern) =
       |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
       |> Printf.sprintf "(%s)"
 
-and mt2s t : string =
+and pt2s t : string =
   match t.v with
-  | Ast.MtBase s -> s
-  | Ast.MtList t' -> Printf.sprintf "%s[]" (mt2s t')
-  | Ast.MtFn (t1, t2) -> Printf.sprintf "%s -> %s" (mt2s t1) (mt2s t2)
-  | Ast.MtTup ts ->
+  | Ast.PtBase s -> s
+  | Ast.PtVar s -> Printf.sprintf ".%s" s
+  | Ast.PtList t' -> Printf.sprintf "%s[]" (pt2s t')
+  | Ast.PtFn (t1, t2) -> Printf.sprintf "%s -> %s" (pt2s t1) (pt2s t2)
+  | Ast.PtTup ts ->
       ts
-      |> List.map (fun t -> mt2s t)
+      |> List.map (fun t -> pt2s t)
       |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
       |> Printf.sprintf "(%s)"
 
@@ -476,8 +479,10 @@ and print_e1 (expr : Ir1.expr) lvl : unit =
   | Ir1.Tuple es ->
       Printf.printf "tuple\n";
       List.iter (fun e -> print_e1 e (lvl + 1)) es
-  | Ir1.FnVal (p, c, _, _, _, body) ->
-      Printf.printf "fnval (%s)\n" (param2s1 p);
+  | Ir1.FnVal (tvs, p, c, _, _, _, body) ->
+      Printf.printf "fnval [%s] (%s)\n"
+        (tvs |> List.map Int.to_string |> String.concat " ")
+        (param2s1 p);
       List.iter (fun name -> print_closure name (lvl + 1)) c;
       print_e1 body (lvl + 1)
   | Ir1.FnCall (fn, arg) ->
@@ -496,10 +501,22 @@ and print_e1 (expr : Ir1.expr) lvl : unit =
       Printf.printf "block\n";
       Array.iter (fun e -> print_e1 e (lvl + 1)) ds
 
+and rt2s (t : Ir1.resolved_type) : string =
+  match t.v with
+  | Ir1.RtBase s -> s
+  | Ir1.RtVar id -> Printf.sprintf ".%d" id
+  | Ir1.RtList t' -> Printf.sprintf "%s[]" (rt2s t')
+  | Ir1.RtFn (t1, t2) -> Printf.sprintf "%s -> %s" (rt2s t1) (rt2s t2)
+  | Ir1.RtTup ts ->
+      ts
+      |> List.map (fun t -> rt2s t)
+      |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
+      |> Printf.sprintf "(%s)"
+
 and param2s1 (p : Ir1.param) =
   match p with
   | Ir1.PrmUnit -> "()"
-  | Ir1.PrmLeaf (i, t) -> Printf.sprintf "%d: %s" i (mt2s t)
+  | Ir1.PrmLeaf (i, t) -> Printf.sprintf "%d: %s" i (rt2s t)
   | Ir1.PrmTuple ps ->
       ps
       |> List.map (fun t -> param2s1 t)
@@ -576,22 +593,7 @@ let print_ir3 (ds : Ir3.ir3 Array.t) =
 
 let rec print_type t lvl =
   print_string (String.make (2 * lvl) ' ');
-  match t with
-  | Types.Int -> print_endline "int"
-  | Types.Float -> print_endline "float"
-  | Types.Bool -> print_endline "bool"
-  | Types.Char -> print_endline "char"
-  | Types.Void -> print_endline "void"
-  | Types.List t' ->
-      print_endline "list";
-      print_type t' (lvl + 1)
-  | Types.Fn (t1, t2) ->
-      print_endline "fn";
-      print_type t1 (lvl + 1);
-      print_type t2 (lvl + 1)
-  | Types.Tuple ts ->
-      print_endline "tuple";
-      List.iter (fun t -> print_type t (lvl + 1)) ts
+  print_endline (Types.t_to_str t)
 
 (* recursively print a value, indented by lvl *)
 let rec print_value (v : Values.value) lvl : unit =

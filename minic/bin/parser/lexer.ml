@@ -31,6 +31,7 @@ and t src sn head =
       else if c = '"' then t_string src' sn [] (head, move_head c head)
       else if c = '\'' then t_char src' sn (head, move_head c head)
       else if Char.Ascii.is_digit c then t_int src sn 0 (head, head)
+      else if c = '.' then t_typevar src' sn [] (head, move_head c head)
       else if c = '#' then t_comment src sn head
       else t_op src sn (head, head)
 
@@ -41,7 +42,7 @@ and t_name src sn s0 (start, head) =
   | front ->
       let name = String.of_seq (List.to_seq (List.rev s0)) in
       let token = match n2t name with Some t -> t | None -> Token.Name name in
-      let token' = ({ v = token; span = (sn, start, head) } : Token.t) in
+      let token' = ({ v = token; span = (sn, start, head) } : Token.token) in
       let old_src = fun () -> front in
       Stream.Head (token', t old_src sn head)
 
@@ -147,6 +148,19 @@ and t_float src sn n0 d (start, head) =
         ( { v = Token.Float n0; span = (sn, start, head) },
           t (fun () -> front) sn head )
 
+and t_typevar src sn s0 (start, head) =
+  match src () with
+  | Stream.Head (c, src') when Char.Ascii.is_alphanum c || c = '_' ->
+      t_typevar src' sn (c :: s0) (start, move_head c head)
+  | front ->
+      let name = String.of_seq (List.to_seq (List.rev s0)) in
+      let token =
+        match n2t name with Some t -> t | None -> Token.Typevar name
+      in
+      let token' = ({ v = token; span = (sn, start, head) } : Token.token) in
+      let old_src = fun () -> front in
+      Stream.Head (token', t old_src sn head)
+
 and t_comment src sn (row, col) =
   match src () with
   | Stream.Head (c, src') when c <> '\n' -> t_comment src' sn (row, col + 1)
@@ -157,7 +171,7 @@ and t_op src sn (start, head) =
     match src () with
     | Stream.Head (c, src') when c = c1 ->
         Stream.Head
-          ( ({ v = t1; span = (sn, start, move_head c1 head) } : Token.t),
+          ( ({ v = t1; span = (sn, start, move_head c1 head) } : Token.token),
             t src' sn (move_head c1 head) )
     | front ->
         Stream.Head

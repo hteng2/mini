@@ -36,6 +36,7 @@ Semicolon: `;`
 **Types**
 
 To: `->`
+Typevar: `\.[a-zA-Z_][a-zA-Z0-9_]*`
 
 **Comparison**
 

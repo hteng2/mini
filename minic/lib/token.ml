@@ -1,4 +1,4 @@
-type token =
+type t =
   (* values *)
   | Int of int
   | Float of float
@@ -18,6 +18,7 @@ type token =
   | Semicolon
   (* types *)
   | To
+  | Typevar of string
   (* ordered comparison *)
   | Eq
   | Neq
@@ -46,4 +47,4 @@ type token =
   (**)
   | Import
 
-type t = token Loc.spanned
+type token = t Loc.spanned

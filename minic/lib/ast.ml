@@ -1,12 +1,13 @@
-type mt =
-  | MtBase of string
-  | MtList of mini_type
-  | MtFn of mini_type * mini_type
-  | MtTup of mini_type list
+type pt =
+  | PtBase of string
+  | PtVar of string
+  | PtList of parsed_type
+  | PtFn of parsed_type * parsed_type
+  | PtTup of parsed_type list
 
-and mini_type = mt Loc.spanned
+and parsed_type = pt Loc.spanned
 
-type prm = PrmUnit | PrmLeaf of string * mini_type | PrmTuple of param list
+type prm = PrmUnit | PrmLeaf of string * parsed_type | PrmTuple of param list
 and param = prm Loc.spanned
 
 type pattern = PtrnUnit | PtrnLeaf of string | PtrnTuple of pattern list
@@ -47,7 +48,7 @@ type e =
   (* tuples *)
   | Tuple of expr list
   (* function *)
-  | FnVal of param * mini_type * expr
+  | FnVal of string list * param * parsed_type * expr
   | FnCall of expr * expr
   (* decs *)
   | Bind of pattern * expr

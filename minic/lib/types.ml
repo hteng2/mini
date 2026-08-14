@@ -1,4 +1,6 @@
 type t =
+  | All of int
+  | Some of int
   | Int
   | Float
   | Bool
@@ -10,6 +12,8 @@ type t =
 
 let rec t_to_str (t : t) : string =
   match t with
+  | All n -> Printf.sprintf "all %d" n
+  | Some n -> Printf.sprintf "some %d" n
   | Int -> "int"
   | Float -> "float"
   | Bool -> "bool"

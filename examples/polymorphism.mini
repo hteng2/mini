@@ -1,0 +1,2 @@
+bind apply fn [.a, .b] (x .a, f .a -> .b) .b (f x);
+apply ("hello, world!", println)
