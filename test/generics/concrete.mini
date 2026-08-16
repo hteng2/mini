@@ -1,0 +1,26 @@
+bind while fn [.a, .b] (i0 .a)
+    .b -> (.a -> bool) -> ((.a, .b) -> (.a, .b)) -> (.a, .b) {
+
+    bind f self;
+    fn (x0 .b)
+        (.a -> bool) -> ((.a, .b) -> (.a, .b)) -> (.a, .b) {
+
+        fn (cond (.a -> bool))
+            ((.a, .b) -> (.a, .b)) -> (.a, .b) {
+
+            fn (body (.a, .b) -> (.a, .b))
+                (.a, .b) {
+                if (cond i0) {
+                    bind (i1, x1) body (i0, x0);
+                    f i1 x1 cond body
+                } else {
+                    (i0, x0)
+                }
+            }
+        }
+    }
+};
+bind (_, n) while 1 1 (fn (i int) bool (i < 10)) (fn (i int, x int) (int, int) {
+    (i+1, x*i)
+});
+println(itoa(n))

@@ -1,0 +1,9 @@
+type a int;
+bind f fn (x a) (a -> a) -> a {
+    type a int -> int;
+    fn (f a) int {
+        f x
+    }
+};
+bind x f 0 (fn (y a) a (y+1));
+println (itoa x)

@@ -67,9 +67,6 @@ let rec parse_type (ts : Token.token Stream.t) :
   | Stream.Head ({ v = Token.Name name; span }, ts') ->
       let ts'', t = advance_type ts' { v = Ast.PtBase name; span } in
       (ts'', Some t)
-  | Stream.Head ({ v = Token.Typevar name; span }, ts') ->
-      let ts'', t = advance_type ts' { v = Ast.PtVar name; span } in
-      (ts'', Some t)
   | _ ->
       let old_ts = fun () -> front in
       (old_ts, None)
@@ -106,10 +103,11 @@ and bind_type e x =
       match parse_type ts with ts', None -> None | ts', Some t -> Some (ts', t))
     e x
 
-let parse_typevar (ts : Token.token Stream.t) =
-  match ts () with
-  | Stream.Head ({ v = Token.Typevar name; span }, ts') -> (ts', Some name)
-  | front -> ((fun () -> front), None)
+let parse_typedef (ts : Token.token Stream.t) span :
+    Token.token Stream.t * Ast.typedef =
+  let ts', name = bind_name { v = "name"; span } ts in
+  let ts'', t = bind_type { v = "type"; span } ts' in
+  (ts'', (name, t))
 
 let rec parse_param (ts : Token.token Stream.t) :
     Token.token Stream.t * Ast.param option =
@@ -279,7 +277,15 @@ and parse_expr (ts : Token.token Stream.t) min_bp =
           let ts1, typevars =
             match ts1 () with
             | Stream.Head ({ v = Token.Lbrack; span = lspan }, ts') ->
-                let ts'', typevars = parse_mult ts' parse_typevar Token.Comma in
+                let ts'', typevars =
+                  parse_mult ts'
+                    (fun (t : Token.token Stream.t) ->
+                      match t () with
+                      | Stream.Head ({ v = Token.Name n; span }, ts') ->
+                          (ts', Some n)
+                      | f -> ((fun () -> f), None))
+                    Token.Comma
+                in
                 let ts''', _ =
                   bind_x Token.Rbrack { v = "matching ]"; span = lspan } ts''
                 in
@@ -371,8 +377,7 @@ and parse_expr (ts : Token.token Stream.t) min_bp =
           (ts8, Some expr)
       | Token.Lbrace ->
           let sn, start_loc, end_loc = span in
-          let body = Queue.create () in
-          let ts2 = parse_expr_seq span ts1 body in
+          let ts2, head, tail = parse_expr_seq span ts1 in
           let ts3, (sn, _, end_loc) =
             (bind_x Token.Rbrace)
               { v = "'}'"; span = (sn, start_loc, end_loc) }
@@ -380,7 +385,7 @@ and parse_expr (ts : Token.token Stream.t) min_bp =
           in
           let ts4, expr =
             advance_expr ts3 min_bp
-              { v = Ast.Block body; span = (sn, start_loc, end_loc) }
+              { v = Ast.Block (head, tail); span = (sn, start_loc, end_loc) }
           in
           (ts4, Some expr)
       | v when is_prefix v -> (
@@ -437,24 +442,34 @@ and advance_expr ts min_bp (left : Ast.expr) : Token.token Stream.t * Ast.expr =
                   }
           else (old_ts, left))
 
-and parse_expr_seq span ts acc =
-  match parse_expr ts 0 with
-  | ts', None -> raise (Errors.Expected { v = "expression"; span })
-  | ts', Some expr -> (
-      let front = ts' () in
-      match front with
-      | Stream.Head ({ v = Token.Semicolon; span }, ts'') ->
-          Queue.add expr acc;
-          let ts''' = parse_expr_seq span ts'' acc in
-          ts'''
-      | _ ->
-          Queue.add expr acc;
-          let old_ts' = fun () -> front in
-          old_ts')
+and parse_expr_seq span ts : Token.token Stream.t * Ast.stmt Queue.t * Ast.expr
+    =
+  let head = Queue.create () in
+  let rec helper span (ts : Token.token Stream.t) =
+    match ts () with
+    | Stream.Head ({ v = Token.Type; span }, ts') ->
+        let ts'', td = parse_typedef ts' span in
+        let ts''', _ = bind_x Token.Semicolon { v = ";"; span } ts'' in
+        Queue.add (Ast.Typedef td) head;
+        helper span ts'''
+    | front -> (
+        let old_ts = fun () -> front in
+        match parse_expr old_ts 0 with
+        | ts', None -> raise (Errors.Expected { v = "expression"; span })
+        | ts', Some expr -> (
+            match ts' () with
+            | Stream.Head ({ v = Token.Semicolon; span }, ts'') ->
+                Queue.add (Ast.Expr expr) head;
+                helper span ts''
+            | front ->
+                let old_ts' = fun () -> front in
+                (old_ts', expr)))
+  in
+  let ts', tail = helper span ts in
+  (ts', head, tail)
 
 let parse ts sn =
-  let ds = Queue.create () in
-  let ts' = parse_expr_seq (sn, (0, 0), (0, 0)) ts ds in
+  let ts', head, tail = parse_expr_seq (sn, (0, 0), (0, 0)) ts in
   match ts' () with
-  | Stream.End -> ds
+  | Stream.End -> (head, tail)
   | Stream.Head ({ span }, _) -> raise (Errors.Unexpected { v = "token"; span })

@@ -1,8 +1,7 @@
 (* IR-1 - SSA form *)
 
 type rt =
-  | RtBase of string
-  | RtVar of int
+  | RtBase of int
   | RtList of resolved_type
   | RtFn of resolved_type * resolved_type
   | RtTup of resolved_type list
@@ -11,6 +10,7 @@ and resolved_type = rt Loc.spanned
 
 type param = PrmUnit | PrmLeaf of int * resolved_type | PrmTuple of param list
 type pattern = PtrnUnit | PtrnLeaf of int | PtrnTuple of pattern list
+type typedef = int * resolved_type
 
 type e =
   (* atoms *)
@@ -54,8 +54,9 @@ type e =
   | Bind of pattern * expr
   | If of expr * expr * expr
   (* closure captures, body *)
-  | Block of expr Array.t
+  | Block of stmt Array.t * expr
 
 and expr = e Loc.spanned
+and stmt = Typedef of typedef | Expr of expr
 
 type program = expr Array.t * int

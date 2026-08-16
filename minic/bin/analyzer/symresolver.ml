@@ -7,11 +7,12 @@ open Minic_lib
 exception NameError of Errors.error
 
 type resolve_ctx = {
-  typevars : (string, int) Hashtbl.t;
+  currtypes : (string, int) Hashtbl.t;
+  exttypes : (string, int) Hashtbl.t list;
   nexttypeid : int ref;
+  captures : (string, int) Hashtbl.t;
   currsymbols : (string, int) Hashtbl.t;
   extsymbols : (string, int) Hashtbl.t list;
-  captures : (string, int) Hashtbl.t;
   nextsymid : int ref;
 }
 
@@ -135,34 +136,32 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
       let es' = infer_list es [] in
       { v = Ir1.Tuple (List.rev es'); span }
   | Ast.FnVal (tvs, p, t, body) ->
+      let ctx' =
+        {
+          currtypes = Hashtbl.create 0;
+          exttypes = ctx.currtypes :: ctx.exttypes;
+          nexttypeid = ctx.nexttypeid;
+          captures = Hashtbl.create 0;
+          currsymbols = Hashtbl.create 0;
+          extsymbols = ctx.currsymbols :: ctx.extsymbols;
+          nextsymid = ctx.nextsymid;
+        }
+      in
       let tvs' =
         List.map
           (fun tv ->
             let id = !(ctx.nexttypeid) in
-            Hashtbl.add ctx.typevars tv id;
+            Hashtbl.add ctx'.currtypes tv id;
             incr ctx.nexttypeid;
             id)
           tvs
       in
-      let t' = resolve_type t ctx.typevars in
-      let currsymbols' = Hashtbl.create 0 in
       let self = !(ctx.nextsymid) in
-      Hashtbl.add currsymbols' "self" self;
+      Hashtbl.add ctx'.currsymbols "self" self;
       incr ctx.nextsymid;
-      let p' = resolve_param p currsymbols' ctx.typevars ctx.nextsymid in
-      let captures' = Hashtbl.create 0 in
-      let body' =
-        resolve_expr body
-          {
-            typevars = ctx.typevars;
-            nexttypeid = ctx.nexttypeid;
-            captures = captures';
-            currsymbols = currsymbols';
-            extsymbols = ctx.currsymbols :: ctx.extsymbols;
-            nextsymid = ctx.nextsymid;
-          }
-      in
-      List.iter (fun tv -> Hashtbl.remove ctx.typevars tv) tvs;
+      let p' = resolve_param p ctx' in
+      let t' = resolve_type t ctx' in
+      let body' = resolve_expr body ctx' in
       let captures'' =
         Hashtbl.fold
           (fun name n acc ->
@@ -170,7 +169,7 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
             | None -> Hashtbl.add ctx.captures name n
             | Some _ -> ());
             n :: acc)
-          captures' []
+          ctx'.captures []
       in
       { v = Ir1.FnVal (tvs', p', captures'', t', self, 0, body'); span }
   | Ast.FnCall (fn, arg) ->
@@ -183,100 +182,101 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
       { v = Ir1.Bind (ptrn', expr'); span }
   | Ast.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) = resolve_expr expr ctx in
-      let scope' = Hashtbl.create 0 in
-      let captures' = Hashtbl.create 0 in
-      let ({ v = e1' } as body' : Ir1.expr) =
-        resolve_expr body
-          {
-            ctx with
-            currsymbols = scope';
-            extsymbols = ctx.currsymbols :: ctx.extsymbols;
-          }
+      let ctx' =
+        {
+          currtypes = Hashtbl.create 0;
+          exttypes = ctx.currtypes :: ctx.exttypes;
+          nexttypeid = ctx.nexttypeid;
+          captures = ctx.captures;
+          currsymbols = Hashtbl.create 0;
+          extsymbols = ctx.currsymbols :: ctx.extsymbols;
+          nextsymid = ctx.nextsymid;
+        }
       in
+      let ({ v = e1' } as body' : Ir1.expr) = resolve_expr body ctx' in
       Hashtbl.iter
         (fun name n ->
           match Hashtbl.find_opt ctx.currsymbols name with
           | None -> Hashtbl.add ctx.captures name n
           | Some _ -> ())
-        captures';
-      let scope' = Hashtbl.create 0 in
-      let captures' = Hashtbl.create 0 in
-      let ({ v = e2' } as body2' : Ir1.expr) =
-        resolve_expr body2
-          {
-            ctx with
-            currsymbols = scope';
-            extsymbols = ctx.currsymbols :: ctx.extsymbols;
-          }
+        ctx'.captures;
+      let ctx' =
+        {
+          currtypes = Hashtbl.create 0;
+          exttypes = ctx.currtypes :: ctx.exttypes;
+          nexttypeid = ctx.nexttypeid;
+          captures = ctx.captures;
+          currsymbols = Hashtbl.create 0;
+          extsymbols = ctx.currsymbols :: ctx.extsymbols;
+          nextsymid = ctx.nextsymid;
+        }
       in
+      let ({ v = e2' } as body2' : Ir1.expr) = resolve_expr body2 ctx' in
       Hashtbl.iter
         (fun name n ->
           match Hashtbl.find_opt ctx.currsymbols name with
           | None -> Hashtbl.add ctx.captures name n
           | Some _ -> ())
-        captures';
+        ctx'.captures;
       { v = Ir1.If (expr', body', body2'); span }
-  | Ast.Block body ->
-      let scope' = Hashtbl.create 0 in
-      let captures' = Hashtbl.create 0 in
-      let body' =
-        resolve_exprs body
-          {
-            ctx with
-            captures = captures';
-            currsymbols = scope';
-            extsymbols = ctx.currsymbols :: ctx.extsymbols;
-          }
+  | Ast.Block (head, tail) ->
+      let ctx' =
+        {
+          currtypes = Hashtbl.create 0;
+          exttypes = ctx.currtypes :: ctx.exttypes;
+          nexttypeid = ctx.nexttypeid;
+          captures = Hashtbl.create 0;
+          currsymbols = Hashtbl.create 0;
+          extsymbols = ctx.currsymbols :: ctx.extsymbols;
+          nextsymid = ctx.nextsymid;
+        }
       in
+      let head, tail = resolve_seq head tail ctx' in
       Hashtbl.iter
         (fun name n ->
           match Hashtbl.find_opt ctx.currsymbols name with
           | None -> Hashtbl.add ctx.captures name n
           | Some _ -> ())
-        captures';
-      { v = Ir1.Block body'; span }
+        ctx'.captures;
+      { v = Ir1.Block (head, tail); span }
 
-and resolve_exprs es ctx =
-  let acc = Queue.create () in
-  let rec helper () =
-    match Queue.take_opt es with
-    | None -> ()
-    | Some expr ->
-        let expr' = resolve_expr expr ctx in
-        Queue.add expr' acc;
-        helper ()
+and resolve_seq head tail ctx =
+  let head' =
+    head |> Queue.to_seq
+    |> Seq.map (fun stmt ->
+        match stmt with
+        | Ast.Typedef (name, t) -> Ir1.Typedef (resolve_typedef name t ctx)
+        | Ast.Expr expr -> Ir1.Expr (resolve_expr expr ctx))
+    |> Array.of_seq
   in
-  helper ();
-  Array.init (Queue.length acc) (fun _ -> Queue.take acc)
+  let tail' = resolve_expr tail ctx in
+  (head', tail')
 
-and resolve_param (p : Ast.param) symbols typevars id : Ir1.param =
+and resolve_param (p : Ast.param) (ctx : resolve_ctx) : Ir1.param =
   match p.v with
   | Ast.PrmUnit -> Ir1.PrmUnit
   | Ast.PrmLeaf (name, t) ->
-      let i = !id in
-      Hashtbl.add symbols name i;
-      incr id;
-      Ir1.PrmLeaf (i, resolve_type t typevars)
+      let i = !(ctx.nextsymid) in
+      Hashtbl.add ctx.currsymbols name i;
+      incr ctx.nextsymid;
+      Ir1.PrmLeaf (i, resolve_type t ctx)
   | Ast.PrmTuple ps ->
-      let ps' = List.map (fun p -> resolve_param p symbols typevars id) ps in
+      let ps' = List.map (fun p -> resolve_param p ctx) ps in
       Ir1.PrmTuple ps'
 
-and resolve_type (t : Ast.parsed_type) typevars : Ir1.resolved_type =
+and resolve_type (t : Ast.parsed_type) (ctx : resolve_ctx) : Ir1.resolved_type =
   let v' =
     match t.v with
-    | Ast.PtBase name -> Ir1.RtBase name
-    | Ast.PtVar name ->
-        Ir1.RtVar
-          (match Hashtbl.find_opt typevars name with
+    | Ast.PtBase name ->
+        Ir1.RtBase
+          (match search_scopes (ctx.currtypes :: ctx.exttypes) name with
           | Some n -> n
           | None ->
               raise
-                (NameError
-                   { v = "typevariable name not found" ^ name; span = t.span }))
-    | Ast.PtList t' -> Ir1.RtList (resolve_type t' typevars)
-    | Ast.PtFn (t1, t2) ->
-        Ir1.RtFn (resolve_type t1 typevars, resolve_type t2 typevars)
-    | Ast.PtTup ts -> Ir1.RtTup (List.map (fun t -> resolve_type t typevars) ts)
+                (NameError { v = "type name not found" ^ name; span = t.span }))
+    | Ast.PtList t' -> Ir1.RtList (resolve_type t' ctx)
+    | Ast.PtFn (t1, t2) -> Ir1.RtFn (resolve_type t1 ctx, resolve_type t2 ctx)
+    | Ast.PtTup ts -> Ir1.RtTup (List.map (fun t -> resolve_type t ctx) ts)
   in
   { v = v'; span = t.span }
 
@@ -291,6 +291,13 @@ and resolve_pattern (p : Ast.pattern) symbols id : Ir1.pattern =
   | Ast.PtrnTuple ps ->
       let ps' = List.map (fun p -> resolve_pattern p symbols id) ps in
       Ir1.PtrnTuple ps'
+
+and resolve_typedef name t ctx =
+  let t' = resolve_type t ctx in
+  let id = !(ctx.nexttypeid) in
+  Hashtbl.add ctx.currtypes name id;
+  incr ctx.nexttypeid;
+  (id, t')
 
 (* apply type induction rules and convert to ops *)
 let rec simplify_expr ({ v; span } as expr : Ir1.expr) symmapping id : Ir1.expr
@@ -424,12 +431,21 @@ let rec simplify_expr ({ v; span } as expr : Ir1.expr) symmapping id : Ir1.expr
         simplify_expr body2 symmapping id
       in
       { v = Ir1.If (expr', body', body2'); span }
-  | Ir1.Block body ->
-      let body' = simplify_exprs body symmapping id in
-      { v = Ir1.Block body'; span }
+  | Ir1.Block (head, tail) ->
+      let head', tail' = simplify_seq head tail symmapping id in
+      { v = Ir1.Block (head', tail'); span }
 
-and simplify_exprs es mapping id =
-  Array.map (fun expr -> simplify_expr expr mapping id) es
+and simplify_seq head tail mapping id =
+  let head' =
+    Array.map
+      (fun stmt ->
+        match stmt with
+        | Ir1.Typedef td -> stmt
+        | Ir1.Expr expr -> Ir1.Expr (simplify_expr expr mapping id))
+      head
+  in
+  let tail' = simplify_expr tail mapping id in
+  (head', tail')
 
 and simplify_param (p : Ir1.param) mapping id : Ir1.param =
   match p with
@@ -455,22 +471,30 @@ and simplify_pattern (p : Ir1.pattern) mapping id : Ir1.pattern =
       let ps' = List.map (fun p -> simplify_pattern p mapping id) ps in
       Ir1.PtrnTuple ps'
 
-let run es =
+let run (head, tail) =
+  let currtypes = Hashtbl.create 0 in
+  let nexttypeid = ref 0 in
+  List.iter
+    (fun (t : Builtins.builtinType) ->
+      Hashtbl.add currtypes t.name !nexttypeid;
+      incr nexttypeid)
+    Builtins.ts;
+
   let currsymbols = Hashtbl.create 0 in
-  let typevars = Hashtbl.create 0 in
-  let captures = Hashtbl.create 0 in
   let nextsymid = ref 0 in
-  List.iteri
-    (fun i (bfn : Builtins.builtinFn) ->
-      Hashtbl.add currsymbols bfn.name i;
+  List.iter
+    (fun (bfn : Builtins.builtinFn) ->
+      Hashtbl.add currsymbols bfn.name !nextsymid;
       incr nextsymid)
-    Builtins.builtins;
-  let irs =
-    resolve_exprs es
+    Builtins.fns;
+
+  let head', tail' =
+    resolve_seq head tail
       {
-        typevars;
-        nexttypeid = ref 0;
-        captures;
+        currtypes;
+        exttypes = [];
+        nexttypeid;
+        captures = Hashtbl.create 0;
         currsymbols;
         extsymbols = [];
         nextsymid;
@@ -482,6 +506,6 @@ let run es =
     (fun i (bfn : Builtins.builtinFn) ->
       Hashtbl.add mapping i !nextsymid;
       incr nextsymid)
-    Builtins.builtins;
-  let irs' = simplify_exprs irs mapping nextsymid in
-  (irs', !nextsymid)
+    Builtins.fns;
+  let head'', tail'' = simplify_seq head' tail' mapping nextsymid in
+  ((head'', tail''), !nextsymid)

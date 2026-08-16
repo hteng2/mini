@@ -22,7 +22,7 @@ let to_real_path path =
       Printf.printf "Error '%s' for '%s'\n" (Unix.error_message err) path;
       exit 0
 
-let rec parse_and_import file (files : hashset) (asts : Ast.expr Queue.t) =
+let rec parse_and_import file (files : hashset) head =
   let file' = to_real_path file in
   if H.mem files file' then raise (Failure "circular import detected")
   else
@@ -38,8 +38,14 @@ let rec parse_and_import file (files : hashset) (asts : Ast.expr Queue.t) =
         List.map (fun import -> Filename.concat dirname import) imports
       in
 
-      List.iter (fun import -> parse_and_import import files asts) imports';
-      Queue.transfer (Parser.parse ts' file') asts
+      List.iter
+        (fun import ->
+          let tail = parse_and_import import files head in
+          Queue.add (Ast.Expr tail) head)
+        imports';
+      let head', tail' = Parser.parse ts' file' in
+      Queue.transfer head' head;
+      tail'
     with
     | Errors.Expected { v; span = sn, (a, b), (c, d) } ->
         Printf.printf "error: %s %d:%d-%d:%d - expected %s\n" sn a b c d v;
@@ -56,7 +62,7 @@ let analyze ast =
   | Symresolver.NameError { v; span = sn, (a, b), (c, d) } ->
       Printf.printf "error: %s %d:%d-%d:%d - name %s\n" sn a b c d v;
       exit 0
-  | Typechecker.TypeError { v; span = sn, (a, b), (c, d) } ->
+  | Types.TypeError { v; span = sn, (a, b), (c, d) } ->
       Printf.printf "error: %s %d:%d-%d:%d - type %s\n" sn a b c d v;
       exit 0
 
@@ -81,9 +87,9 @@ let () =
       if Array.length Sys.argv <> 3 then (
         print_usage ();
         exit 0);
-      let asts = Queue.create () in
-      parse_and_import absolute_path (H.create 0) asts;
-      asts |> analyze
+      let head = Queue.create () in
+      let tail = parse_and_import absolute_path (H.create 0) head in
+      (head, tail) |> analyze
       (* |> (fun ir ->
         Debug.print_ir ir 0;
         ir) *)
@@ -100,8 +106,8 @@ let () =
       if Array.length Sys.argv <> 4 then (
         print_usage ();
         exit 0);
-      let asts = Queue.create () in
-      parse_and_import absolute_path (H.create 0) asts;
-      asts |> analyze |> Optimizer.run |> Lowering.run
+      let head = Queue.create () in
+      let tail = parse_and_import absolute_path (H.create 0) head in
+      (head, tail) |> analyze |> Optimizer.run |> Lowering.run
       |> Codegen.run Sys.argv.(3)
   | _ -> print_usage ()

@@ -8,8 +8,7 @@ let exec es scope =
   let ls = Stack.create () in
   let cs = Stack.create () in
   let rec helper expr i (scope : Values.value Array.t) =
-    (* Stack.iter (fun v -> Debug.print_value_top v) vs;
-    Printf.printf "i = %d; vs = %d; ls = %d; cs = %d\n" i (Stack.length vs)
+    (* Printf.printf "i = %d; vs = %d; ls = %d; cs = %d\n" i (Stack.length vs)
       (Stack.length ls) (Stack.length cs); *)
     if i >= Array.length expr then ()
     else
@@ -365,6 +364,6 @@ let run (ds, sc) =
   let scope = Array.make sc Values.Nil in
   List.iteri
     (fun i (bfn : Builtins.builtinFn) -> scope.(i) <- Values.Builtin bfn.def)
-    Builtins.builtins;
+    Builtins.fns;
   exec ds scope;
   flush stdout

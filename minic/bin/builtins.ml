@@ -1,5 +1,16 @@
 open Minic_lib
 
+type builtinType = { name : string; t : Types.t }
+
+let ts : builtinType list =
+  [
+    { name = "int"; t = Types.Int };
+    { name = "float"; t = Types.Float };
+    { name = "bool"; t = Types.Bool };
+    { name = "char"; t = Types.Char };
+    { name = "void"; t = Types.Void };
+  ]
+
 type builtinFn = {
   name : string;
   fnType : Types.t;
@@ -7,7 +18,7 @@ type builtinFn = {
   def : Values.value -> Values.value;
 }
 
-let builtins : builtinFn list =
+let fns : builtinFn list =
   [
     {
       name = "print";

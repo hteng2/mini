@@ -26,7 +26,6 @@ let t2s t =
   | Token.Comma -> "Comma\t"
   | Token.Semicolon -> "Semicolon\t"
   | Token.To -> "To\t"
-  | Token.Typevar n -> Printf.sprintf "Typevar %s\t" n
   | Token.Eq -> "Eq\t"
   | Token.Neq -> "Neq\t"
   | Token.Gt -> "Gt\t"
@@ -48,6 +47,7 @@ let t2s t =
   | Token.If -> "If\t"
   | Token.Else -> "Else\t"
   | Token.Fn -> "Fn\t"
+  | Token.Type -> "Type\t"
   | Token.Import -> "Import\t"
 
 let rec print_tokens ts =
@@ -65,7 +65,13 @@ let print_range ((sn, (a, b), (c, d)) : Loc.range) =
   Printf.printf "%s%s| " s s2;
   ()
 
-let rec print_ast p lvl = Queue.iter (fun expr -> print_expr expr lvl) p
+let rec print_ast p lvl =
+  Queue.iter
+    (fun stmt ->
+      match stmt with
+      | Ast.Expr expr -> print_expr expr lvl
+      | Ast.Typedef td -> print_typedef td lvl)
+    p
 
 and print_expr (expr : Ast.expr) lvl : unit =
   print_range expr.span;
@@ -170,9 +176,14 @@ and print_expr (expr : Ast.expr) lvl : unit =
       print_expr e (lvl + 1);
       print_expr ds (lvl + 1);
       print_expr ds2 (lvl + 1)
-  | Ast.Block ds ->
+  | Ast.Block (head, tail) ->
       Printf.printf "block\n";
-      print_ast ds (lvl + 1)
+      print_ast head (lvl + 1);
+      print_expr tail (lvl + 1)
+
+and print_typedef (name, t) lvl =
+  print_string (String.make (2 * lvl) ' ');
+  print_endline (name ^ pt2s t)
 
 and param2s (param : Ast.param) =
   match param.v with
@@ -197,7 +208,6 @@ and ptrn2s (ptrn : Ast.pattern) =
 and pt2s t : string =
   match t.v with
   | Ast.PtBase s -> s
-  | Ast.PtVar s -> Printf.sprintf ".%s" s
   | Ast.PtList t' -> Printf.sprintf "%s[]" (pt2s t')
   | Ast.PtFn (t1, t2) -> Printf.sprintf "%s -> %s" (pt2s t1) (pt2s t2)
   | Ast.PtTup ts ->
@@ -391,8 +401,14 @@ and ptrn2s p =
       |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
       |> Printf.sprintf "(%s)"
 
-let rec print_ir1 (ds : Ir1.expr Array.t) lvl =
-  Array.iter (fun expr -> print_e1 expr lvl) ds
+let rec print_ir1 (head, tail) lvl =
+  Array.iter
+    (fun stmt ->
+      match stmt with
+      | Ir1.Typedef td -> print_typedef td lvl
+      | Ir1.Expr expr -> print_e1 expr lvl)
+    head;
+  print_e1 tail lvl
 
 and print_e1 (expr : Ir1.expr) lvl : unit =
   print_string (String.make (2 * lvl) ' ');
@@ -497,14 +513,13 @@ and print_e1 (expr : Ir1.expr) lvl : unit =
       print_e1 e (lvl + 1);
       print_e1 e1 (lvl + 1);
       print_e1 e2 (lvl + 1)
-  | Ir1.Block ds ->
+  | Ir1.Block (head, tail) ->
       Printf.printf "block\n";
-      Array.iter (fun e -> print_e1 e (lvl + 1)) ds
+      print_ir1 (head, tail) (lvl + 1)
 
 and rt2s (t : Ir1.resolved_type) : string =
   match t.v with
-  | Ir1.RtBase s -> s
-  | Ir1.RtVar id -> Printf.sprintf ".%d" id
+  | Ir1.RtBase i -> Int.to_string i
   | Ir1.RtList t' -> Printf.sprintf "%s[]" (rt2s t')
   | Ir1.RtFn (t1, t2) -> Printf.sprintf "%s -> %s" (rt2s t1) (rt2s t2)
   | Ir1.RtTup ts ->
@@ -532,6 +547,10 @@ and ptrn2s1 (p : Ir1.pattern) =
       |> List.map (fun t -> ptrn2s1 t)
       |> List.fold_left (fun acc s -> acc ^ s ^ ",") ""
       |> Printf.sprintf "(%s)"
+
+and print_typedef (name, t) lvl =
+  print_string (String.make (2 * lvl) ' ');
+  Printf.printf "typedef %d %s\n" name (rt2s t)
 
 let print_ir3 (ds : Ir3.ir3 Array.t) =
   Array.iteri

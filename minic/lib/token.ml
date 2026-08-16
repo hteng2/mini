@@ -18,7 +18,6 @@ type t =
   | Semicolon
   (* types *)
   | To
-  | Typevar of string
   (* ordered comparison *)
   | Eq
   | Neq
@@ -44,6 +43,7 @@ type t =
   | If
   | Else
   | Fn
+  | Type
   (**)
   | Import
 

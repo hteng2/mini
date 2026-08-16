@@ -1,6 +1,5 @@
 type pt =
   | PtBase of string
-  | PtVar of string
   | PtList of parsed_type
   | PtFn of parsed_type * parsed_type
   | PtTup of parsed_type list
@@ -11,6 +10,7 @@ type prm = PrmUnit | PrmLeaf of string * parsed_type | PrmTuple of param list
 and param = prm Loc.spanned
 
 type pattern = PtrnUnit | PtrnLeaf of string | PtrnTuple of pattern list
+type typedef = string * parsed_type
 
 type e =
   (* atoms *)
@@ -53,6 +53,7 @@ type e =
   (* decs *)
   | Bind of pattern * expr
   | If of expr * expr * expr
-  | Block of expr Queue.t
+  | Block of stmt Queue.t * expr
 
 and expr = e Loc.spanned
+and stmt = Typedef of typedef | Expr of expr
