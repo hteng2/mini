@@ -159,5 +159,6 @@ and gen_bind p q =
 
 let run (ds, sc) =
   gen_exprs ds (fun ds' ->
+      Queue.add Ir3.JmpBck ds';
       Array.init (Queue.length ds') (fun _ -> Queue.take ds'))
   |> fun ds' -> (ds', sc)

@@ -2,8 +2,10 @@ use std::env::args;
 use std::fs::File;
 use std::io::Read;
 
+mod builtin;
 mod decoder;
 mod runtime;
+mod value;
 
 fn print_usage() {
     println!("Usage: minir <file.mbc>");

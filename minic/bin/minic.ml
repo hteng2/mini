@@ -81,12 +81,15 @@ let time (start, stop, _) name f =
   res
 
 let () =
-  let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
+  if Array.length Sys.argv < 2 then (
+    print_usage ();
+    exit 0);
   match Sys.argv.(1) with
   | "run" ->
       if Array.length Sys.argv <> 3 then (
         print_usage ();
         exit 0);
+      let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
       let head = Queue.create () in
       let tail = parse_and_import absolute_path (H.create 0) head in
       (head, tail) |> analyze
@@ -102,12 +105,17 @@ let () =
       Debug.print_ir3 ir3;
       (ir3, sc)) *)
       |> Eval.run
+      |> Debug.print_value_top
   | "build" ->
       if Array.length Sys.argv <> 4 then (
         print_usage ();
         exit 0);
+      let absolute_path = Filename.concat (Sys.getcwd ()) Sys.argv.(2) in
       let head = Queue.create () in
       let tail = parse_and_import absolute_path (H.create 0) head in
       (head, tail) |> analyze |> Optimizer.run |> Lowering.run
+      |> (fun (ir3, sc) ->
+      Debug.print_ir3 ir3;
+      (ir3, sc))
       |> Codegen.run Sys.argv.(3)
   | _ -> print_usage ()

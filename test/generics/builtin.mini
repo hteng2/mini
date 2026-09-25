@@ -1,0 +1,17 @@
+bind len 10;
+bind l list(fn (i int) int {i + 1000}, len);
+(fn (i int) void {
+    if (i < len) {
+        println(itoa(l[i]));
+        self (i+1)
+    } else ()
+})(0);
+
+bind len 16;
+bind l list(fn (i int) float {1.0 / itof(i+1)}, len);
+(fn (i int) void {
+    if (i < len) {
+        println(ftoa(l[i]));
+        self (i+1)
+    } else ()
+})(0)

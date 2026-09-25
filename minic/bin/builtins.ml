@@ -15,7 +15,10 @@ type builtinFn = {
   name : string;
   fnType : Types.t;
   pure : bool;
-  def : Values.value -> Values.value;
+  def :
+    (int -> Values.value array -> Values.value) ->
+    Values.value Stack.t ->
+    Values.value;
 }
 
 let fns : builtinFn list =
@@ -25,8 +28,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.List Types.Char, Types.Void);
       pure = false;
       def =
-        (fun s ->
-          match s with
+        (fun _ s ->
+          match Stack.pop s with
           | Values.List s ->
               Array.iter
                 (fun c ->
@@ -43,8 +46,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.List Types.Char, Types.Void);
       pure = false;
       def =
-        (fun s ->
-          match s with
+        (fun _ s ->
+          match Stack.pop s with
           | Values.List s ->
               Array.iter
                 (fun c ->
@@ -62,7 +65,7 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Void, Types.List Types.Char);
       pure = false;
       def =
-        (fun _ ->
+        (fun _ _ ->
           Values.List
             (Array.of_list
                (read_line () |> String.to_seq |> List.of_seq
@@ -73,8 +76,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Int, Types.List Types.Char);
       pure = true;
       def =
-        (fun i ->
-          match i with
+        (fun _ i ->
+          match Stack.pop i with
           | Values.Int i ->
               let str =
                 Int.to_string i |> String.to_seq |> List.of_seq
@@ -89,8 +92,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Float, Types.List Types.Char);
       pure = true;
       def =
-        (fun i ->
-          match i with
+        (fun _ i ->
+          match Stack.pop i with
           | Values.Float n ->
               let str =
                 Float.to_string n |> String.to_seq |> List.of_seq
@@ -105,8 +108,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Float, Types.Int);
       pure = true;
       def =
-        (fun i ->
-          match i with
+        (fun _ i ->
+          match Stack.pop i with
           | Values.Float n -> Values.Int (Float.to_int n)
           | _ -> assert false);
     };
@@ -115,8 +118,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Int, Types.Float);
       pure = true;
       def =
-        (fun i ->
-          match i with
+        (fun _ i ->
+          match Stack.pop i with
           | Values.Int n -> Values.Float (Float.of_int n)
           | _ -> assert false);
     };
@@ -125,8 +128,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.List Types.Char, Types.Int);
       pure = true;
       def =
-        (fun s ->
-          match s with
+        (fun _ s ->
+          match Stack.pop s with
           | Values.List s -> (
               match
                 s
@@ -143,8 +146,33 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Void, Types.Float);
       pure = false;
       def =
-        (fun _ ->
+        (fun _ _ ->
           Random.self_init ();
           Values.Float (Random.float 1.0));
+    };
+    {
+      name = "list";
+      fnType =
+        Types.Fn
+          ( Types.Tuple [ Types.Fn (Types.Int, Types.All (-1)); Types.Int ],
+            Types.List (Types.All (-1)) );
+      pure = false;
+      def =
+        (fun h v ->
+          match Stack.pop v with
+          | Values.Tuple [ fn; len ] -> (
+              match (fn, len) with
+              | Values.Fn (closure, symcnt, loc), Values.Int n ->
+                  let vs =
+                    Array.init n (fun i ->
+                        let scope' = Array.make symcnt Values.Nil in
+                        scope'.(0) <- fn;
+                        Array.iteri (fun i v -> scope'.(i + 1) <- v) closure;
+                        Stack.push (Values.Int i) v;
+                        h loc scope')
+                  in
+                  Values.List vs
+              | _ -> assert false)
+          | _ -> assert false);
     };
   ]

@@ -11,4 +11,4 @@ type value =
   | Tuple of value list
   (* closure captures, sym count, body loc *)
   | Fn of value array * int * int
-  | Builtin of (value -> value)
+  | Builtin of ((int -> value Array.t -> value) -> value Stack.t -> value)

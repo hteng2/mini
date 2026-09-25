@@ -1,2 +1,11 @@
-println "1";
-println "2"
+bind l list(fn (i int) int {i * i}, 10);
+println (itoa(l[0]));
+println (itoa(l[1]));
+println (itoa(l[2]));
+println (itoa(l[3]));
+println (itoa(l[4]));
+println (itoa(l[5]));
+println (itoa(l[6]));
+println (itoa(l[7]));
+println (itoa(l[8]));
+println (itoa(l[9]))
