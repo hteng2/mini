@@ -9,20 +9,21 @@ let force_type t1 t2 e = if t1 = t2 then () else raise (Types.TypeError e)
 (* convert param parsed types to actual types *)
 let rec translate_type (t : Ir1.resolved_type) tds =
   match t.v with
+  | Ir1.RtUnit -> Types.Unit
   | Ir1.RtBase s -> Hashtbl.find tds s
   | Ir1.RtList t' -> Types.List (translate_type t' tds)
   | Ir1.RtFn (t1, t2) -> Types.Fn (translate_type t1 tds, translate_type t2 tds)
   | Ir1.RtTup ts -> (
       let ts' = List.map (fun t -> translate_type t tds) ts in
       match List.length ts' with
-      | 0 -> Types.Void
+      | 0 -> Types.Unit
       | 1 -> List.hd ts'
       | _ -> Types.Tuple ts')
 
 (* Types.specializes types in symbols *)
 let rec check_param prm symbols tds =
   match prm with
-  | Ir1.PrmUnit -> (Types.Void, Ir2.PtrnUnit)
+  | Ir1.PrmUnit -> (Types.Unit, Ir2.PtrnUnit)
   | Ir1.PrmLeaf (i, t) ->
       let t' = translate_type t tds in
       Hashtbl.add symbols i (Types.specialize t');
@@ -35,7 +36,7 @@ let rec check_param prm symbols tds =
 
 let rec match_ptrn_type ptrn span t symbols : Ir2.pattern =
   match (ptrn, t) with
-  | Ir1.PtrnUnit, Types.Void -> Ir2.PtrnUnit
+  | Ir1.PtrnUnit, Types.Unit -> Ir2.PtrnUnit
   | Ir1.PtrnLeaf i, t ->
       Hashtbl.add symbols i t;
       Ir2.PtrnLeaf i
@@ -63,7 +64,7 @@ let rec check_expr ({ v; span } : Ir1.expr) typedefs symbols chainhead =
           Types.List Types.Char )
     | Ir1.Name name -> ({ v = Ir2.Name name; span }, Hashtbl.find symbols name)
     | Ir1.Bool b -> ({ v = Ir2.Bool b; span }, Types.Bool)
-    | Ir1.Void -> ({ v = Ir2.Void; span }, Types.Void)
+    | Ir1.Void -> ({ v = Ir2.Void; span }, Types.Unit)
     (* unops *)
     | Ir1.Neg e -> (
         let e', t = check_expr e typedefs symbols false in
@@ -355,9 +356,7 @@ let rec check_expr ({ v; span } : Ir1.expr) typedefs symbols chainhead =
             (List.map (fun e -> check_expr e typedefs symbols false) es)
         in
         ({ v = Ir2.Tuple es'; span }, Types.Tuple ts)
-    | Ir1.FnVal (tvs, p, closure, rest, self, symcnt, body) ->
-        List.iter (fun i -> Hashtbl.add typedefs i (Types.All i)) tvs;
-
+    | Ir1.FnVal (tvs, ps, closure, rett, self, symcnt, body) ->
         let symbols' = Hashtbl.create 0 in
         let id = ref 1 in
         List.iter
@@ -367,22 +366,32 @@ let rec check_expr ({ v; span } : Ir1.expr) typedefs symbols chainhead =
             incr id)
           closure;
 
+        (* tvs *)
+        let typedefs' = Hashtbl.copy typedefs in
+        List.iter
+          (fun i ->
+            Hashtbl.add typedefs i (Types.All i);
+            Hashtbl.add typedefs' i (Types.Some i))
+          tvs;
+
         (* outward type *)
-        let argt, p' = check_param p symbols' typedefs in
-        let rest' = translate_type rest typedefs in
-        let fnt = Types.Fn (argt, rest') in
+        let argt, p' = check_param ps symbols' typedefs in
+        let rett' = translate_type rett typedefs in
+        let fnt = Types.Fn (argt, rett') in
 
         (* inward type *)
-        let rest_inward = Types.specialize rest' in
+        let rett_inward = Types.specialize rett' in
         let fnt_inward = Types.specialize fnt in
         let () = Hashtbl.add symbols' self fnt_inward in
-        let body', bodyt = check_expr body typedefs symbols' false in
+
+        let body', bodyt = check_expr body typedefs' symbols' false in
         let () =
-          force_type bodyt rest_inward
+          force_type bodyt rett_inward
             {
               v =
                 Printf.sprintf "fn body must return %s, got %s"
-                  (Types.t_to_str rest') (Types.t_to_str bodyt);
+                  (Types.t_to_str rett_inward)
+                  (Types.t_to_str bodyt);
               span = body'.span;
             }
         in
@@ -408,7 +417,7 @@ let rec check_expr ({ v; span } : Ir1.expr) typedefs symbols chainhead =
     | Ir1.Bind (ptrn, expr) ->
         let e', t = check_expr expr typedefs symbols false in
         let ptrn' = match_ptrn_type ptrn span t symbols in
-        ({ v = Ir2.Bind (ptrn', e'); span }, Types.Void)
+        ({ v = Ir2.Bind (ptrn', e'); span }, Types.Unit)
     | Ir1.If (expr, body, body2) ->
         let e', t = check_expr expr typedefs symbols false in
         force_type t Types.Bool

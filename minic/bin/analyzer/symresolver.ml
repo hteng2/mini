@@ -187,7 +187,7 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
           currtypes = Hashtbl.create 0;
           exttypes = ctx.currtypes :: ctx.exttypes;
           nexttypeid = ctx.nexttypeid;
-          captures = ctx.captures;
+          captures = Hashtbl.create 0;
           currsymbols = Hashtbl.create 0;
           extsymbols = ctx.currsymbols :: ctx.extsymbols;
           nextsymid = ctx.nextsymid;
@@ -205,7 +205,7 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
           currtypes = Hashtbl.create 0;
           exttypes = ctx.currtypes :: ctx.exttypes;
           nexttypeid = ctx.nexttypeid;
-          captures = ctx.captures;
+          captures = Hashtbl.create 0;
           currsymbols = Hashtbl.create 0;
           extsymbols = ctx.currsymbols :: ctx.extsymbols;
           nextsymid = ctx.nextsymid;
@@ -277,6 +277,7 @@ and resolve_type (t : Ast.parsed_type) (ctx : resolve_ctx) : Ir1.resolved_type =
     | Ast.PtList t' -> Ir1.RtList (resolve_type t' ctx)
     | Ast.PtFn (t1, t2) -> Ir1.RtFn (resolve_type t1 ctx, resolve_type t2 ctx)
     | Ast.PtTup ts -> Ir1.RtTup (List.map (fun t -> resolve_type t ctx) ts)
+    | Ast.PtUnit -> Ir1.RtUnit
   in
   { v = v'; span = t.span }
 

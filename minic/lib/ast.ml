@@ -3,6 +3,7 @@ type pt =
   | PtList of parsed_type
   | PtFn of parsed_type * parsed_type
   | PtTup of parsed_type list
+  | PtUnit
 
 and parsed_type = pt Loc.spanned
 

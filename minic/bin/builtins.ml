@@ -8,7 +8,7 @@ let ts : builtinType list =
     { name = "float"; t = Types.Float };
     { name = "bool"; t = Types.Bool };
     { name = "char"; t = Types.Char };
-    { name = "void"; t = Types.Void };
+    { name = "unit"; t = Types.Unit };
   ]
 
 type builtinFn = {
@@ -25,7 +25,7 @@ let fns : builtinFn list =
   [
     {
       name = "print";
-      fnType = Types.Fn (Types.List Types.Char, Types.Void);
+      fnType = Types.Fn (Types.List Types.Char, Types.Unit);
       pure = false;
       def =
         (fun _ s ->
@@ -43,7 +43,7 @@ let fns : builtinFn list =
     };
     {
       name = "println";
-      fnType = Types.Fn (Types.List Types.Char, Types.Void);
+      fnType = Types.Fn (Types.List Types.Char, Types.Unit);
       pure = false;
       def =
         (fun _ s ->
@@ -62,7 +62,7 @@ let fns : builtinFn list =
     };
     {
       name = "readline";
-      fnType = Types.Fn (Types.Void, Types.List Types.Char);
+      fnType = Types.Fn (Types.Unit, Types.List Types.Char);
       pure = false;
       def =
         (fun _ _ ->
@@ -143,7 +143,7 @@ let fns : builtinFn list =
     };
     {
       name = "rand";
-      fnType = Types.Fn (Types.Void, Types.Float);
+      fnType = Types.Fn (Types.Unit, Types.Float);
       pure = false;
       def =
         (fun _ _ ->

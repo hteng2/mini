@@ -207,6 +207,7 @@ and ptrn2s (ptrn : Ast.pattern) =
 
 and pt2s t : string =
   match t.v with
+  | Ast.PtUnit -> "()"
   | Ast.PtBase s -> s
   | Ast.PtList t' -> Printf.sprintf "%s[]" (pt2s t')
   | Ast.PtFn (t1, t2) -> Printf.sprintf "%s -> %s" (pt2s t1) (pt2s t2)
@@ -519,6 +520,7 @@ and print_e1 (expr : Ir1.expr) lvl : unit =
 
 and rt2s (t : Ir1.resolved_type) : string =
   match t.v with
+  | Ir1.RtUnit -> "()"
   | Ir1.RtBase i -> Int.to_string i
   | Ir1.RtList t' -> Printf.sprintf "%s[]" (rt2s t')
   | Ir1.RtFn (t1, t2) -> Printf.sprintf "%s -> %s" (rt2s t1) (rt2s t2)

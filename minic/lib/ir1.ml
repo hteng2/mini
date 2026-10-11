@@ -5,6 +5,7 @@ type rt =
   | RtList of resolved_type
   | RtFn of resolved_type * resolved_type
   | RtTup of resolved_type list
+  | RtUnit
 
 and resolved_type = rt Loc.spanned
 

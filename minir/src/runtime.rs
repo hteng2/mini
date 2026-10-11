@@ -299,6 +299,8 @@ fn exec(
             }
             Code::Bind(u) => {
                 let v = stack.pop().unwrap();
+                let frame = frames.last_mut().unwrap();
+                println!("{}", frame.len());
                 frames.last_mut().unwrap()[*u as usize] = v;
                 pc += 1;
             }
@@ -321,7 +323,10 @@ fn exec(
                 }
             }
             Code::JmpBack => match jmplist.pop() {
-                Some(i) => pc = i,
+                Some(i) => {
+                    frames.pop();
+                    pc = i
+                }
                 None => break,
             },
         }

@@ -8,7 +8,7 @@ type t =
   | Float
   | Bool
   | Char
-  | Void
+  | Unit
   | List of t
   | Fn of t * t
   | Tuple of t list
@@ -22,7 +22,7 @@ let rec t_to_str (t : t) : string =
   | Float -> "float"
   | Bool -> "bool"
   | Char -> "char"
-  | Void -> "void"
+  | Unit -> "void"
   | List t' -> t_to_str t' ^ "[]"
   | Fn (t1, t2) -> Printf.sprintf "%s -> %s" (t_to_str t1) (t_to_str t2)
   | Tuple ts ->
@@ -41,7 +41,7 @@ let unify t0 t1 assignments span =
   let rec occurs n t =
     match walk t assignments with
     | All n' -> n == n'
-    | Any | Some _ | Int | Float | Bool | Char | Void -> false
+    | Any | Some _ | Int | Float | Bool | Char | Unit -> false
     | List t' -> occurs n t'
     | Fn (f, t) -> occurs n f || occurs n t
     | Tuple ts -> List.fold_left (fun acc t -> acc || occurs n t) false ts
@@ -82,7 +82,7 @@ let unify t0 t1 assignments span =
                      (t_to_str t1);
                  span;
                })
-    | Int, Int | Float, Float | Bool, Bool | Char, Char | Void, Void -> t0
+    | Int, Int | Float, Float | Bool, Bool | Char, Char | Unit, Unit -> t0
     | List inner0, List inner1 -> List (helper inner0 inner1)
     | Fn (from0, to0), Fn (from1, to1) -> Fn (helper from0 from1, helper to0 to1)
     | Tuple ts0, Tuple ts1 ->

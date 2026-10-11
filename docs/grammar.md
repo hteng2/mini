@@ -53,7 +53,7 @@ At -> Expr `Lbrack` Expr `Rbrack`
 
 Tuple -> `Lparen` Mult(Expr) `Rparen`
 
-FnVal -> `Fn` Typevars `Lparen` Pattern(`Name` Type) `Rparen` Type Expr
+FnVal -> `Fn` Typevars Params Type Expr
 
 FnCall -> Expr Expr
 
@@ -74,3 +74,7 @@ Type -> `Name` | Type `Lbrack` `Rbrack` | Type `To` Type | Pattern(Type)
 ## Typevars
 
 Typevars -> EMPTY | `Lbrack` Mult(`Typevar`) `Rbrack`
+
+## Params
+
+Params -> EMPTY | `Lparen` Pattern(`Name` Type) `Rparen` Params
