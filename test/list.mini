@@ -1,0 +1,1 @@
+list(fn (i int) int {i*i}, 1000000)

@@ -1,0 +1,20 @@
+bind None (false, []);
+bind Some fn [a] (val a) (bool, a[]) (true, [val]);
+
+
+bind IsSome fn [a] (opt (bool, a[])) bool {
+    bind (some, _) opt;
+    some
+};
+
+bind IsNone fn [a] (opt (bool, a[])) bool {
+    bind (some, _) opt;
+    !some
+};
+
+bind Match fn [a, b] (opt (bool, a[])) (void -> b, a -> b) -> b {
+    fn (f void -> b, g a -> b) b {
+        bind (some, v) opt;
+        if (some) { g(v[0]) } else { f() }
+    }
+}

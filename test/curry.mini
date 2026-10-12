@@ -1,0 +1,3 @@
+bind add fn (a int) (b int) int (a+b);
+bind add1 add 1;
+println (itoa (add1 66))

@@ -1,0 +1,7 @@
+bind add fn (a int) int->int {
+    fn (b int) int {
+        a + b
+    }
+};
+bind add1 add 1;
+println (itoa (add1 66))
