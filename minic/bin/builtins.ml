@@ -175,4 +175,29 @@ let fns : builtinFn list =
               | _ -> assert false)
           | _ -> assert false);
     };
+    {
+      name = "seq";
+      fnType =
+        Types.Fn
+          ( Types.Tuple [ Types.Fn (Types.Int, Types.All (-2)); Types.Int ],
+            Types.List (Types.All (-2)) );
+      pure = false;
+      def =
+        (fun h v ->
+          match Stack.pop v with
+          | Values.Tuple [ fn; len ] -> (
+              match (fn, len) with
+              | Values.Fn (closure, symcnt, loc), Values.Int n ->
+                  let vs =
+                    Array.init n (fun i ->
+                        let scope' = Array.make symcnt Values.Nil in
+                        scope'.(0) <- fn;
+                        Array.iteri (fun i v -> scope'.(i + 1) <- v) closure;
+                        Stack.push (Values.Int i) v;
+                        h loc scope')
+                  in
+                  Values.List vs
+              | _ -> assert false)
+          | _ -> assert false);
+    };
   ]

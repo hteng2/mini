@@ -1,21 +1,10 @@
 use crate::builtin::*;
 use crate::decoder::{Code, Optype, Program};
 use crate::value::*;
+use rayon::prelude::*;
 use std::panic;
-use std::{fmt, rc::Rc, vec};
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Value::Nil => "nil",
-            Value::Int(i) => &i.to_string(),
-            Value::Float(f) => &f.to_string(),
-            Value::Ref(r) => &format!("<ref {}>", Rc::strong_count(r)),
-            Value::List(_) | Value::Tuple(_) | Value::Fn(_, _, _) | Value::Builtin(_) => panic!(),
-        };
-        f.write_str(s)
-    }
-}
+use std::sync::Arc;
+use std::vec;
 
 impl Clone for Value {
     fn clone(&self) -> Self {
@@ -24,7 +13,7 @@ impl Clone for Value {
             Value::Nil => Value::Nil,
             Value::Int(i) => Value::Int(*i),
             Value::Float(f) => Value::Float(*f),
-            Value::Ref(r) => Value::Ref(Rc::clone(r)),
+            Value::Ref(r) => Value::Ref(Arc::clone(r)),
             Value::List(_) | Value::Tuple(_) | Value::Fn(_, _, _) | Value::Builtin(_) => panic!(),
         }
     }
@@ -151,29 +140,45 @@ fn eval_op(op: &Optype, stack: &mut Vec<Value>) -> Value {
     }
 }
 
-fn exec_builtin(
-    p: &Program,
-    builtins: &[fn(EntryValue) -> ExitValue],
-    stack: &mut Vec<Value>,
-    i: usize,
-    arg: Value,
-) {
-    let f = builtins[i];
+fn exec_builtin(p: &Program, stack: &mut Vec<Value>, i: usize, arg: Value) {
+    let f = get_builtin(i);
     let mut ev = f(EntryValue::Call(arg));
-    while let ExitValue::ListCallback(a, acc, g, len) = ev {
-        let r = g.clone();
-        let arg = a;
-        let Value::Fn(cs, sc, loc) = val_deref(&r) else {
-            panic!()
-        };
+    loop {
+        if let ExitValue::ListCallback(a, acc, g, len) = ev {
+            let r = g.clone();
+            let arg = a;
+            let Value::Fn(cs, sc, loc) = val_deref(&r) else {
+                panic!()
+            };
 
-        let mut frame = init_frame(*sc);
-        frame[0] = r.clone();
-        (0..cs.len())
-            .into_iter()
-            .for_each(|i| frame[i + 1] = cs[i].clone());
-        let val = exec(p, builtins, vec![frame], vec![arg], vec![], *loc);
-        ev = f(EntryValue::ListReentry(val, acc, g, len));
+            let mut frame = init_frame(*sc);
+            frame[0] = r.clone();
+            (0..cs.len())
+                .into_iter()
+                .for_each(|i| frame[i + 1] = cs[i].clone());
+            let val = exec(p, vec![frame], vec![arg], vec![], *loc);
+            ev = f(EntryValue::ListReentry(val, acc, g, len));
+        } else if let ExitValue::SeqCallback(g, len) = ev {
+            let Value::Fn(cs, sc, loc) = val_deref(&g) else {
+                panic!()
+            };
+            let mut frame = init_frame(*sc);
+            frame[0] = g.clone();
+            (0..cs.len())
+                .into_iter()
+                .for_each(|i| frame[i + 1] = cs[i].clone());
+
+            let vs: Vec<Value> = (0..len)
+                .into_par_iter()
+                .map(|i| {
+                    let arg = Value::Int(i as i64);
+                    exec(p, vec![frame.clone()], vec![arg], vec![], *loc)
+                })
+                .collect();
+            ev = f(EntryValue::SeqReentry(vs));
+        } else {
+            break;
+        }
     }
     let ExitValue::Done(v) = ev else { panic!() };
     stack.push(v)
@@ -181,7 +186,6 @@ fn exec_builtin(
 
 fn exec(
     p: &Program,
-    builtins: &[fn(EntryValue) -> ExitValue],
     mut frames: Vec<Vec<Value>>,
     mut stack: Vec<Value>,
     mut jmplist: Vec<usize>,
@@ -219,7 +223,7 @@ fn exec(
                 }
                 v.reverse();
                 let v = Value::List(v);
-                stack.push(Value::Ref(Rc::new(v)));
+                stack.push(Value::Ref(Arc::new(v)));
                 pc += 1
             }
             Code::At => {
@@ -238,7 +242,7 @@ fn exec(
                 }
                 v.reverse();
                 let v = Value::Tuple(v);
-                stack.push(Value::Ref(Rc::new(v)));
+                stack.push(Value::Ref(Arc::new(v)));
                 pc += 1
             }
             Code::Destruct => {
@@ -255,7 +259,7 @@ fn exec(
                     .map(|i| frames.last().unwrap()[*i as usize].clone())
                     .collect();
                 let v = Value::Fn(closure, *sc as usize, pc + 1);
-                stack.push(Value::Ref(Rc::new(v)));
+                stack.push(Value::Ref(Arc::new(v)));
                 pc += 1 + *bz as usize
             }
             Code::Call => {
@@ -274,7 +278,7 @@ fn exec(
                     pc = *loc
                 } else {
                     let Value::Builtin(i) = v else { panic!() };
-                    exec_builtin(p, builtins, &mut stack, *i, arg);
+                    exec_builtin(p, &mut stack, *i, arg);
                     pc += 1
                 }
             }
@@ -293,14 +297,12 @@ fn exec(
                     pc = *loc
                 } else {
                     let Value::Builtin(i) = v else { panic!() };
-                    exec_builtin(p, builtins, &mut stack, *i, arg);
+                    exec_builtin(p, &mut stack, *i, arg);
                     pc += 1
                 }
             }
             Code::Bind(u) => {
                 let v = stack.pop().unwrap();
-                let frame = frames.last_mut().unwrap();
-                println!("{}", frame.len());
                 frames.last_mut().unwrap()[*u as usize] = v;
                 pc += 1;
             }
@@ -342,23 +344,11 @@ pub fn run(p: Program) {
 
     let (sc, _) = &p;
     let mut frame = init_frame(*sc as usize);
-    let builtins = [
-        builtin_print,
-        builtin_println,
-        builtin_readline,
-        builtin_itoa,
-        builtin_ftoa,
-        builtin_ftoi,
-        builtin_itof,
-        builtin_atoi,
-        builtin_rand,
-        builtin_list,
-    ];
-    (0..builtins.len()).into_iter().for_each(|i| {
+    (0..NUM_BUILTINS).into_iter().for_each(|i| {
         let b = Value::Builtin(i);
-        frame[i] = Value::Ref(Rc::new(b));
+        frame[i] = Value::Ref(Arc::new(b));
     });
     frames.push(frame);
 
-    exec(&p, &builtins, frames, stack, jmplist, 0usize);
+    exec(&p, frames, stack, jmplist, 0usize);
 }

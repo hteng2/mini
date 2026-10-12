@@ -1,20 +1,22 @@
-use std::{io, ops::Deref, panic, rc::Rc};
+use std::{io, ops::Deref, panic, sync::Arc};
 
 use crate::value::*;
 
 pub enum EntryValue {
     Call(Value),
     ListReentry(Value, Vec<Value>, Value, usize),
+    SeqReentry(Vec<Value>),
 }
 
 pub enum ExitValue {
     ListCallback(Value, Vec<Value>, Value, usize),
+    SeqCallback(Value, usize),
     Done(Value),
 }
 
 pub fn builtin_print(e: EntryValue) -> ExitValue {
     if let EntryValue::Call(Value::Ref(i)) = e
-        && let Value::List(s) = Rc::deref(&i)
+        && let Value::List(s) = Arc::deref(&i)
     {
         s.iter()
             .map(|v| match v {
@@ -28,7 +30,7 @@ pub fn builtin_print(e: EntryValue) -> ExitValue {
 
 pub fn builtin_println(e: EntryValue) -> ExitValue {
     if let EntryValue::Call(Value::Ref(i)) = e
-        && let Value::List(s) = Rc::deref(&i)
+        && let Value::List(s) = Arc::deref(&i)
     {
         s.iter()
             .map(|v| match v {
@@ -49,7 +51,7 @@ pub fn builtin_readline(_: EntryValue) -> ExitValue {
 
     let res = Value::List(s);
 
-    ExitValue::Done(Value::Ref(Rc::new(res)))
+    ExitValue::Done(Value::Ref(Arc::new(res)))
 }
 
 pub fn builtin_itoa(e: EntryValue) -> ExitValue {
@@ -59,7 +61,7 @@ pub fn builtin_itoa(e: EntryValue) -> ExitValue {
 
     let res = str_to_val(&i.to_string());
 
-    ExitValue::Done(Value::Ref(Rc::new(res)))
+    ExitValue::Done(Value::Ref(Arc::new(res)))
 }
 
 pub fn builtin_ftoa(e: EntryValue) -> ExitValue {
@@ -68,7 +70,7 @@ pub fn builtin_ftoa(e: EntryValue) -> ExitValue {
     };
 
     let res = str_to_val(&f.to_string());
-    ExitValue::Done(Value::Ref(Rc::new(res)))
+    ExitValue::Done(Value::Ref(Arc::new(res)))
 }
 
 pub fn builtin_ftoi(e: EntryValue) -> ExitValue {
@@ -106,26 +108,65 @@ pub fn builtin_rand(_: EntryValue) -> ExitValue {
 
 pub fn builtin_list(status: EntryValue) -> ExitValue {
     if let EntryValue::Call(Value::Ref(i)) = status {
-        if let Value::Tuple(vs) = Rc::deref(&i)
+        if let Value::Tuple(vs) = Arc::deref(&i)
             && let Value::Int(i) = vs[1]
         {
-            ExitValue::ListCallback(
-                Value::Int(0),
-                Vec::with_capacity(i as usize),
-                vs[0].clone(),
-                i as usize,
-            )
+            if i == 0 {
+                ExitValue::Done(Value::Ref(Arc::new(Value::List(vec![]))))
+            } else {
+                ExitValue::ListCallback(
+                    Value::Int(0),
+                    Vec::with_capacity(i as usize),
+                    vs[0].clone(),
+                    i as usize,
+                )
+            }
         } else {
             panic!()
         }
     } else if let EntryValue::ListReentry(v, mut acc, f, len) = status {
         acc.push(v);
         if acc.len() == len {
-            ExitValue::Done(Value::Ref(Rc::new(Value::List(acc))))
+            ExitValue::Done(Value::Ref(Arc::new(Value::List(acc))))
         } else {
             ExitValue::ListCallback(Value::Int(acc.len() as i64), acc, f, len)
         }
     } else {
         panic!()
     }
+}
+
+pub fn builtin_seq(status: EntryValue) -> ExitValue {
+    if let EntryValue::Call(Value::Ref(i)) = status {
+        if let Value::Tuple(vs) = Arc::deref(&i)
+            && let Value::Int(i) = vs[1]
+        {
+            ExitValue::SeqCallback(vs[0].clone(), i as usize)
+        } else {
+            panic!()
+        }
+    } else if let EntryValue::SeqReentry(res) = status {
+        ExitValue::Done(Value::Ref(Arc::new(Value::List(res))))
+    } else {
+        panic!()
+    }
+}
+
+pub const NUM_BUILTINS: usize = 11;
+
+pub fn get_builtin(i: usize) -> fn(EntryValue) -> ExitValue {
+    let builtins = [
+        builtin_print,
+        builtin_println,
+        builtin_readline,
+        builtin_itoa,
+        builtin_ftoa,
+        builtin_ftoi,
+        builtin_itof,
+        builtin_atoi,
+        builtin_rand,
+        builtin_list,
+        builtin_seq,
+    ];
+    return builtins[i];
 }

@@ -1,14 +1,31 @@
-use std::{ops::Deref, rc::Rc};
+use std::{
+    fmt::{Display, Formatter, Result},
+    ops::Deref,
+    sync::Arc,
+};
 
 pub enum Value {
     Nil,
     Int(i64),
     Float(f64),
-    Ref(Rc<Value>),
+    Ref(Arc<Value>),
     List(Vec<Value>),
     Tuple(Vec<Value>),
     Fn(Vec<Value>, usize, usize),
     Builtin(usize),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let s = match self {
+            Value::Nil => "nil",
+            Value::Int(i) => &i.to_string(),
+            Value::Float(f) => &f.to_string(),
+            Value::Ref(r) => &format!("<ref {}>", Arc::strong_count(r)),
+            Value::List(_) | Value::Tuple(_) | Value::Fn(_, _, _) | Value::Builtin(_) => panic!(),
+        };
+        f.write_str(s)
+    }
 }
 
 pub fn str_to_val(s: &str) -> Value {
@@ -46,7 +63,10 @@ pub fn val_to_f64(v: Value) -> f64 {
 
 pub fn val_deref(v: &Value) -> &Value {
     match v {
-        Value::Ref(r) => Rc::deref(r),
-        _ => panic!(),
+        Value::Ref(r) => Arc::deref(r),
+        _ => {
+            println!("{}", &v);
+            panic!()
+        }
     }
 }
