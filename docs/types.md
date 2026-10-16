@@ -1,6 +1,6 @@
 # Types
 
-int | float | bool | char | void | list (T) | fn (T, T) | tuple (T[])
+int | float | bool | char | unit | list (T) | fn (T, T) | tuple (T[])
 
 ## Inference rules
 
@@ -16,7 +16,7 @@ Name: ?
 
 Bool: bool
 
-Void: void
+unit: unit
 
 **Arith**
 
@@ -64,7 +64,7 @@ At: list T, int -> T
 
 FnCall: fn (T1, T2) -> T1 -> T2
 
-Bind: T -> Void
+Bind: T -> unit
 
 If: bool, T, T -> T
 

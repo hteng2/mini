@@ -146,7 +146,8 @@ let fns : builtinFn list =
       fnType = Types.Fn (Types.Unit, Types.Float);
       pure = false;
       def =
-        (fun _ _ ->
+        (fun _ v ->
+          let _ = Stack.pop v in
           Random.self_init ();
           Values.Float (Random.float 1.0));
     };

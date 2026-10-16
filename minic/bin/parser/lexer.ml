@@ -8,6 +8,7 @@ let n2t n =
   | "if" -> Some Token.If
   | "else" -> Some Token.Else
   | "fn" -> Some Token.Fn
+  | "fun" -> Some Token.Fun
   | "import" -> Some Token.Import
   | "type" -> Some Token.Type
   | _ -> None

@@ -53,6 +53,7 @@ type e =
   | FnCall of expr * expr
   (* decs *)
   | Bind of pattern * expr
+  | Fun of string * string list * param * parsed_type * expr
   | If of expr * expr * expr
   | Block of stmt Queue.t * expr
 

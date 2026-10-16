@@ -43,6 +43,8 @@ UnOp -> `Add` Expr | `Sub` Expr | `Not` Expr
 
 Bind -> `Bind` Pattern(`Name`) Expr
 
+Fun -> `Fun` Name Typevars Params Type Expr
+
 If -> `If` `Lparen` Expr `Rparen` Expr `Else` Expr
 
 **Misc**
@@ -53,7 +55,7 @@ At -> Expr `Lbrack` Expr `Rbrack`
 
 Tuple -> `Lparen` Mult(Expr) `Rparen`
 
-FnVal -> `Fn` Typevars Params Type Expr
+FnVal -> `Fn` Typevars Param Type Expr
 
 FnCall -> Expr Expr
 
@@ -75,6 +77,10 @@ Type -> `Name` | Type `Lbrack` `Rbrack` | Type `To` Type | Pattern(Type)
 
 Typevars -> EMPTY | `Lbrack` Mult(`Typevar`) `Rbrack`
 
+## Param
+
+Param -> `Lparen` Pattern(`Name` Type) `Rparen`
+
 ## Params
 
-Params -> EMPTY | `Lparen` Pattern(`Name` Type) `Rparen` Params
+Params -> EMPTY | Param Params

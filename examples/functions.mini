@@ -1,0 +1,37 @@
+# functions can be declared in two ways
+
+# lambda expressions
+bind add_one fn (a int) int (a + 1);
+print "5 + 1 = ";
+print (itoa (add_one 5));
+print "\n";
+
+# function declarations
+fun mul_two (a int) int (a * 2);
+print "7 * 2 = ";
+print (itoa (mul_two 7));
+print "\n";
+
+# function declarations can recurse
+fun fact (a int) int {
+    if (a <= 0)
+        1
+    else
+        a * fact (a-1)
+};
+print "12! = ";
+print (itoa (fact 12));
+print "\n";
+
+# function declarations also have syntactic sugar for currying
+fun exp (a int) (b int) int {
+    if (b <= 0)
+        1
+    else
+        a * exp a (b-1)
+};
+print "2^16 = ";
+print (itoa (exp 2 16));
+print "\n";
+
+()

@@ -1,7 +1,7 @@
 # a little "market making" game, showcasing builtins, tail recursion, arrays
 
 bind randint fn (max int) int {
-	ftoi (rand() * itof(max))
+	ftoi (rand() * itof max)
 };
 
 bind genprice fn (center int, range int) int {
@@ -20,48 +20,61 @@ bind trueprice randint(500) + 500;
 print("true price: ");
 println(itoa(trueprice));
 
-bind profit (fn (cash int, eqs int, round int) int {
-	bind s self;
-	if (round >= rounds) {
-		cash + eqs * trueprice
-	} else {
-    	print("initial min: ");
-    	bind min atoi(readline());
+# obtain profit
+bind profit {
+    fun run (cash int) (eqs int) (round int) int {
+    	if (round >= rounds) {
+    		cash + eqs * trueprice
+    	} else {
+        	print("initial min: ");
+        	bind min atoi(readline());
 
-    	print("initial max: ");
-    	bind max atoi(readline());
+        	print("initial max: ");
+        	bind max atoi(readline());
 
-        (fn (t int, cash int, eqs int, k (int, int) -> int) int {
-            if (t >= length) {
-                k(cash, eqs)
-            } else {
-                bind price genprice(trueprice, ranges[round]);
-                print(itoa(price));
+            # generate and trade 10 prices
+            fun trade (t int) (cash int) (eqs int) (k (int, int) -> int) int {
+                if (t >= length) {
+                    k(cash, eqs)
+                } else {
+                    bind price genprice(trueprice, ranges[round]);
+                    print(itoa(price));
 
-                bind new_cash if (price > max) { cash + price } else { cash };
-                bind new_eqs if (price > max) { eqs - 1 } else { eqs };
+                    bind new_cash
+                        if (price > max) (cash + price)
+                        else if (price < min) (cash - price)
+                        else cash;
 
-                if (price > max) {
-                    print(" SELL")
-                } else ();
+                    bind new_eqs
+                        if (price > max) (eqs - 1)
+                        else if (price < min) (eqs + 1)
+                        else eqs;
 
-                if (price < min) {
-                    print(" BUY")
-                } else ();
+                    if (price > max) {
+                        print(" SELL")
+                    } else ();
 
-                println("");
+                    if (price < min) {
+                        print(" BUY")
+                    } else ();
 
-                self (t+1, new_cash, new_eqs, k)
-            }
-        }) (0, cash, eqs, (fn (cash int, eqs int) int {
-        	print("cash: ");
-        	println(itoa(cash));
-        	print("eqs: ");
-        	println(itoa(eqs));
-            s (cash, eqs, round+1)
-        }))
-    }
-}) (0, 0, 0);
+                    println("");
+
+                    trade (t+1) new_cash new_eqs k
+                }
+            };
+
+            trade 0 cash eqs (fn (cash int, eqs int) int {
+            	print("cash: ");
+            	println(itoa(cash));
+            	print("eqs: ");
+            	println(itoa(eqs));
+                run cash eqs (round+1)
+            })
+        }
+    };
+    run 0 0 0
+};
 
 print("true price: ");
 println(itoa(trueprice));

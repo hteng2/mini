@@ -38,8 +38,7 @@ type t =
   | Xor
   (* keywords *)
   | Bind
-  | Print
-  | Println
+  | Fun
   | If
   | Else
   | Fn

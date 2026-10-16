@@ -8,7 +8,8 @@ let exec es scope =
   let ls = Stack.create () in
   let cs = Stack.create () in
   let rec helper i scope =
-    (* Printf.printf "i = %d; vs = %d; ls = %d; cs = %d\n" i (Stack.length vs)
+    (* Stack.iter Debug.print_value_top vs;
+    Printf.printf "i = %d; vs = %d; ls = %d; cs = %d\n" i (Stack.length vs)
       (Stack.length ls) (Stack.length cs); *)
     match es.(i) with
     (* atoms *)

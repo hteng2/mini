@@ -15,6 +15,7 @@ Bind: `bind`
 If: `if`  
 Else: `else`  
 Fn: `fn`
+Fun: `fun`
 
 ## Symbols
 

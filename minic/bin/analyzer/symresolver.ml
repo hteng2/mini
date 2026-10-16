@@ -157,7 +157,7 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
           tvs
       in
       let self = !(ctx.nextsymid) in
-      Hashtbl.add ctx'.currsymbols "self" self;
+      Hashtbl.add ctx'.currsymbols "" self;
       incr ctx.nextsymid;
       let p' = resolve_param p ctx' in
       let t' = resolve_type t ctx' in
@@ -180,6 +180,51 @@ let rec resolve_expr ({ v; span } : Ast.expr) (ctx : resolve_ctx) : Ir1.expr =
       let ({ v = e' } as expr' : Ir1.expr) = resolve_expr expr ctx in
       let ptrn' = resolve_pattern ptrn ctx.currsymbols ctx.nextsymid in
       { v = Ir1.Bind (ptrn', expr'); span }
+  | Ast.Fun (name, tvs, p, t, body) ->
+      let id = !(ctx.nextsymid) in
+      Hashtbl.add ctx.currsymbols name id;
+      incr ctx.nextsymid;
+
+      let ctx' =
+        {
+          currtypes = Hashtbl.create 0;
+          exttypes = ctx.currtypes :: ctx.exttypes;
+          nexttypeid = ctx.nexttypeid;
+          captures = Hashtbl.create 0;
+          currsymbols = Hashtbl.create 0;
+          extsymbols = ctx.currsymbols :: ctx.extsymbols;
+          nextsymid = ctx.nextsymid;
+        }
+      in
+      let tvs' =
+        List.map
+          (fun tv ->
+            let id = !(ctx.nexttypeid) in
+            Hashtbl.add ctx'.currtypes tv id;
+            incr ctx.nexttypeid;
+            id)
+          tvs
+      in
+      let self = !(ctx.nextsymid) in
+      Hashtbl.add ctx'.currsymbols name self;
+      incr ctx.nextsymid;
+      let p' = resolve_param p ctx' in
+      let t' = resolve_type t ctx' in
+      let body' = resolve_expr body ctx' in
+      let captures'' =
+        Hashtbl.fold
+          (fun name n acc ->
+            (match Hashtbl.find_opt ctx.currsymbols name with
+            | None -> Hashtbl.add ctx.captures name n
+            | Some _ -> ());
+            n :: acc)
+          ctx'.captures []
+      in
+
+      let (fnval : Ir1.expr) =
+        { v = Ir1.FnVal (tvs', p', captures'', t', self, 0, body'); span }
+      in
+      { v = Ir1.Bind (Ir1.PtrnLeaf id, fnval); span }
   | Ast.If (expr, body, body2) ->
       let ({ v = e' } as expr' : Ir1.expr) = resolve_expr expr ctx in
       let ctx' =

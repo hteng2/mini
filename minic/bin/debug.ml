@@ -42,11 +42,10 @@ let t2s t =
   | Token.Not -> "Not\t"
   | Token.Xor -> "Xor\t"
   | Token.Bind -> "let\t"
-  | Token.Print -> "Print\t"
-  | Token.Println -> "Println\t"
   | Token.If -> "If\t"
   | Token.Else -> "Else\t"
   | Token.Fn -> "Fn\t"
+  | Token.Fun -> "Fun\t"
   | Token.Type -> "Type\t"
   | Token.Import -> "Import\t"
 
@@ -171,6 +170,10 @@ and print_expr (expr : Ast.expr) lvl : unit =
   | Ast.Bind (p, e) ->
       Printf.printf "let : name = %s\n" (ptrn2s p);
       print_expr e (lvl + 1)
+  | Ast.Fun (n, tvs, p, t, body) ->
+      Printf.printf "fun %s [%s] (%s) -> %s\n" n (String.concat " " tvs)
+        (param2s p) (pt2s t);
+      print_expr body (lvl + 1)
   | Ast.If (e, ds, ds2) ->
       Printf.printf "if then else\n";
       print_expr e (lvl + 1);
