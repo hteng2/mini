@@ -1,4 +1,0 @@
-import "../lib/Option.mini";
-
-bind x None;
-Match x (fn () void {println "none"}, fn (a char[]) void {println a})

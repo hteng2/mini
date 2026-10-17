@@ -4,7 +4,7 @@ This is the repository for the Mini language, containing the compiler/interprete
 
 ## What is Mini
 
-Mini is a small functional language dedicated to clarity, correctness, and performance. Featuring a simple unambiguous grammar, strong type system, and a growing code optimization process.
+Mini is a small functional language dedicated to clarity, correctness, and performance, featuring a simple, unambiguous grammar, robust type system, and a growing code optimization process.
 
 The Mini compiler (minic) outputs its own bytecode runnable via the Mini runtime, but also serves as an interpreter.
 
